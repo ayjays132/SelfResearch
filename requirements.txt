@@ -1,0 +1,9 @@
+torch
+transformers
+scikit-learn
+flask
+beautifulsoup4
+requests
+matplotlib
+
+
