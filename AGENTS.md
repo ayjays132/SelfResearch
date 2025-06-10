@@ -1,130 +1,48 @@
-<<<<<<< HEAD
 # AGENTS Guidelines for SelfResearch
 
-This repository provides a prototype pipeline for training and experimenting with
-HuggingFace language models using PyTorch with CUDA acceleration.
-The baseline example focuses on the `gpt2-medium` causal language model but the
-pipeline should remain flexible enough to accommodate most transformer models
-available through HuggingFace.
+This repository contains a prototype pipeline for training and experimenting with HuggingFace transformer models using PyTorch. CUDA acceleration is supported when available. GPT-2 medium acts as the default example but any model from the HuggingFace Hub should run with minimal configuration.
 
 ## Objectives
-- Build a clean, modular training pipeline in Python leveraging the
-  HuggingFace `transformers` and `datasets` libraries.
-- Support GPU acceleration with CUDA via PyTorch. Ensure that CPU execution also
-  works for environments without a GPU.
-- Encourage exploration and fine-tuning of different models. GPT‑2 medium is the
-  default, but any model from the HuggingFace hub should be usable with minimal
-  configuration changes.
-- Provide utilities for experiment tracking, evaluation, and dataset management
-  to facilitate reproducible research.
-- Foster the agent's ability to research and extend the codebase by exploring
-  new features, training schedules, or model architectures.
+- Build a clean, modular training pipeline leveraging the `transformers` and `datasets` libraries.
+- Support GPU acceleration with CUDA via PyTorch while allowing CPU execution for environments without a GPU.
+- Encourage exploration and fine-tuning of different models. The system should enable agents to try new prompts, training schedules and architectures in search of novel insights.
+- Provide utilities for experiment tracking, evaluation and dataset management so work is reproducible.
+- Integrate virtual research tools for topic selection, source evaluation, simulation, grading and ethics management to support online research workflows.
 
 ## Coding Conventions
-- Use Python 3.10+ with type hints.
-- Follow PEP 8 style guidelines. Use descriptive variable names and add
-  explanatory comments for complex logic.
-- Organize code into clear modules: `data/` for dataset loading and tokenization,
-  `models/` for model wrappers, `train/` for training loops, and `eval/` for
-  evaluation scripts.
-- When possible, provide small runnable examples or unit tests to validate core
-  functionality. Use `pytest` for tests.
+- Use Python 3.10+ with type hints.
+- Follow PEP 8 style guidelines and add explanatory comments for complex logic.
+- Organize code into clear modules: `data/` for dataset loading and tokenization, `models/` for model wrappers, `train/` for training loops and `eval/` for evaluation scripts.
+- When possible, provide small runnable examples or unit tests using `pytest`.
 
 ## Workflow Guidelines
 1. **Environment Setup**
-   - Depend on `torch`, `transformers`, and `datasets`. Provide a `requirements.txt`.
-   - Enable optional CUDA usage by detecting `torch.cuda.is_available()` and
-     setting device accordingly.
+   - Depend on `torch`, `transformers`, and `datasets`; keep `requirements.txt` updated.
+   - Detect CUDA with `torch.cuda.is_available()` and select the appropriate device.
 2. **Dataset Preparation**
-   - Tokenize datasets using the model tokenizer (e.g., GPT‑2 tokenizer) with
-     attention to efficient batching and padding.
-   - Allow loading custom datasets from local files or the HuggingFace Hub.
+   - Tokenize datasets with the chosen model tokenizer (e.g., GPT‑2) using efficient batching and padding.
+   - Allow loading local files or datasets from the HuggingFace Hub.
 3. **Training Loop**
-   - Implement a standard training loop with gradient accumulation support and
-     periodic evaluation on a validation set.
-   - Include options for learning rate schedules, mixed precision training, and
-     checkpoint saving.
+   - Implement a standard loop with gradient accumulation, periodic validation and checkpoint saving.
+   - Support learning rate schedules and optional mixed precision training.
 4. **Evaluation and Research**
-   - Provide metrics such as perplexity for language models, and allow easy
-     extension for custom metrics.
-   - Encourage experimentation with prompts or downstream tasks to enable the
-     model to produce novel insights and discoveries.
+   - Provide metrics such as perplexity and enable easy extension to custom metrics.
+   - Encourage experimentation with prompts and datasets so the agent can generate new hypotheses and discoveries.
+   - Use the simulation and digital literacy modules to run virtual experiments and validate information sources.
 5. **Documentation**
-   - Maintain clear README files and inline documentation. Describe how to run
-     training, how to load different models, and how to extend the pipeline.
+   - Maintain clear README files explaining how to run training, load different models and extend the pipeline.
+
+## Platform Agents
+- **Topic Selector (`research_workflow/topic_selector.py`)** – suggests and validates research topics with a language model.
+- **Source Evaluation (`digital_literacy/source_evaluator.py`)** – assesses credibility, bias and relevance of references and queries academic APIs.
+- **Experiment Simulation (`simulation_lab/experiment_simulator.py`)** – provides physics and biological simulations and generates synthetic data using PyTorch.
+- **Rubric Grading (`assessment/rubric_grader.py`)** – grades research submissions based on predefined rubrics and gives constructive feedback.
+- **Authentication and Ethics (`security/auth_and_ethics.py`)** – manages user authentication, role permissions and ethical flag reviews.
+
+These components combine to create a virtual research environment where models can be trained, evaluated and applied to novel research tasks.
 
 ## Notes for Codex Agents
-- Respect the modular structure when adding or modifying files.
+- Respect the modular project structure when adding or modifying files.
 - Keep code and documentation concise but thorough.
-- If you introduce new dependencies, update `requirements.txt`.
-- Before committing, run `pytest` if tests are provided. If tests fail or cannot
-  be run, note it in the PR message.
-=======
-# AI Agents in the Virtual Research Education Platform
-
-This document outlines the various AI agents integrated into the Virtual Research Education Platform, detailing their roles and functionalities.
-
-## 1. Topic Selector Agent
-
-**Module:** `research_workflow/topic_selector.py`
-
-**Role:** Assists users in identifying and validating research topics and questions. It leverages a pre-trained language model to suggest novel and specific research topics based on a given research area. It also includes a validation mechanism to assess the clarity, focus, and feasibility of user-defined research questions.
-
-**Key Features:**
-- Generates specific research topics using a generative LLM.
-- Validates research questions for coherence and relevance.
-- Integrates PyTorch for underlying NLP computations.
-
-## 2. Source Evaluation Agent
-
-**Module:** `digital_literacy/source_evaluator.py`
-
-**Role:** Evaluates the credibility, bias, and relevance of academic sources (URLs, simulated PDFs/metadata). It integrates with academic search APIs (e.g., arXiv, Semantic Scholar) to fetch real-world academic data and employs NLP techniques for in-depth analysis.
-
-**Key Features:**
-- Fetches content from URLs and simulates content for other source types.
-- Assesses source credibility using zero-shot classification.
-- Detects potential bias through sentiment analysis and political bias classification.
-- Summarizes source content for quick understanding.
-- Searches academic databases for relevant papers.
-
-## 3. Experiment Simulation Agent
-
-**Module:** `simulation_lab/experiment_simulator.py`
-
-**Role:** Provides a virtual environment for running and visualizing scientific simulations. It supports various models, including physics simulations (e.g., projectile motion) and biological simulations (e.g., Lotka-Volterra predator-prey models). It also generates synthetic datasets for experimental purposes.
-
-**Key Features:**
-- Runs physics and biological simulations with configurable parameters.
-- Generates synthetic datasets with controllable noise levels.
-- Visualizes simulation results and generated data using Matplotlib.
-- Utilizes PyTorch for accelerated numerical computations.
-
-## 4. Rubric Grading Agent
-
-**Module:** `assessment/rubric_grader.py`
-
-**Role:** Automates the grading of research proposals and reports based on predefined rubrics. It uses advanced NLP techniques, including transformer models and sentence embeddings, to compare submission content against expected criteria and provide detailed, empathetic feedback.
-
-**Key Features:**
-- Calculates similarity between submission text and rubric criteria using sentence embeddings.
-- Assigns scores based on content similarity.
-- Generates constructive and empathetic feedback using a text generation model.
-- Leverages PyTorch for efficient NLP model inference.
-
-## 5. Authentication and Ethics Agent
-
-**Module:** `security/auth_and_ethics.py`
-
-**Role:** Manages user authentication, access control, and ethical review processes within the platform. It ensures secure user access, defines role-based permissions, and provides mechanisms for flagging and reviewing ethical concerns related to research activities or data handling.
-
-**Key Features:**
-- Secure user registration and authentication with password hashing.
-- Role-based access control for different platform functionalities.
-- System for flagging and reviewing ethical concerns with detailed tracking.
-- Ensures data privacy and responsible research practices.
-
-These agents collectively form the backbone of the Virtual Research Education Platform, providing intelligent assistance and automation across various stages of the research and learning workflow.
-
-
->>>>>>> 714aa31 (Initial full project import)
+- Update `requirements.txt` if new dependencies are introduced.
+- If tests are provided, run `pytest` before committing and note failures in the PR message.
