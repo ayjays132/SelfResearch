@@ -33,6 +33,9 @@ class TrainingConfig:
         batch_size: Per-device batch size.
         lr: Learning rate.
         grad_accum: Steps for gradient accumulation.
+        warmup_steps: Scheduler warmup steps.
+        lr_scheduler_type: Name of the learning rate scheduler.
+        max_grad_norm: Gradient clipping value.
         device: Optional override for computation device.
     """
 
@@ -46,6 +49,9 @@ class TrainingConfig:
     batch_size: int = 2
     lr: float = 5e-5
     grad_accum: int = 2
+    warmup_steps: int = 0
+    lr_scheduler_type: str = "linear"
+    max_grad_norm: float = 1.0
     device: Optional[str] = None
 
 
@@ -73,6 +79,9 @@ def train_model(config: TrainingConfig) -> None:
         logging_steps=10,
         save_steps=50,
         gradient_accumulation_steps=config.grad_accum,
+        warmup_steps=config.warmup_steps,
+        lr_scheduler_type=config.lr_scheduler_type,
+        max_grad_norm=config.max_grad_norm,
         evaluation_strategy="steps" if eval_ds is not None else "no",
         eval_steps=50 if eval_ds is not None else None,
         load_best_model_at_end=eval_ds is not None,
@@ -118,6 +127,9 @@ def main() -> None:
     parser.add_argument("--epochs", type=int, default=1, help="Number of training epochs")
     parser.add_argument("--batch-size", type=int, default=2, help="Batch size")
     parser.add_argument("--grad-accum", type=int, default=2, help="Gradient accumulation steps")
+    parser.add_argument("--warmup-steps", type=int, default=0, help="Scheduler warmup steps")
+    parser.add_argument("--lr-scheduler", default="linear", help="LR scheduler type")
+    parser.add_argument("--max-grad-norm", type=float, default=1.0, help="Gradient clipping norm")
     parser.add_argument("--output-dir", default="./model_output", help="Directory to save the model")
     args = parser.parse_args()
 
@@ -131,6 +143,9 @@ def main() -> None:
         epochs=args.epochs,
         batch_size=args.batch_size,
         grad_accum=args.grad_accum,
+        warmup_steps=args.warmup_steps,
+        lr_scheduler_type=args.lr_scheduler,
+        max_grad_norm=args.max_grad_norm,
     )
     train_model(config)
 
