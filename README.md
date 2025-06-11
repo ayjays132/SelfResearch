@@ -53,6 +53,16 @@ dataset:
 python3 -m eval.language_model_evaluator gpt2 ag_news --split test
 ```
 
+## Dataset Caching
+`load_and_tokenize` and `load_dataset_splits` accept a `cache_dir` argument. If
+provided, tokenized datasets will be saved to disk and loaded on subsequent
+calls without reprocessing.
+
+```python
+from data.dataset_loader import load_and_tokenize
+ds = load_and_tokenize("ag_news", "train[:100]", "distilgpt2", cache_dir="./cache/ag_news_train")
+```
+
 New training loops, datasets or evaluation scripts can be added under these
 modules, keeping the code organized as described in `AGENTS.md`.
 
