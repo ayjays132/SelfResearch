@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Optional
+import json
 import argparse
 import math
 
@@ -37,6 +38,7 @@ class TrainingConfig:
         lr_scheduler_type: Name of the learning rate scheduler.
         max_grad_norm: Gradient clipping value.
         device: Optional override for computation device.
+        log_file: Optional path to save training and evaluation metrics.
     """
 
     model_name: str
@@ -53,6 +55,7 @@ class TrainingConfig:
     lr_scheduler_type: str = "linear"
     max_grad_norm: float = 1.0
     device: Optional[str] = None
+    log_file: Optional[str] = None
 
 
 def train_model(config: TrainingConfig) -> None:
@@ -111,10 +114,14 @@ def train_model(config: TrainingConfig) -> None:
         callbacks=[EarlyStoppingCallback(early_stopping_patience=3)] if eval_ds is not None else None,
     )
 
+    metrics = {}
     trainer.train()
     if eval_ds is not None:
-        trainer.evaluate()
+        metrics = trainer.evaluate()
     trainer.save_model(config.output_dir)
+    if config.log_file:
+        with open(config.log_file, "w") as f:
+            json.dump(metrics, f, indent=2)
 
 
 def main() -> None:
@@ -131,6 +138,7 @@ def main() -> None:
     parser.add_argument("--lr-scheduler", default="linear", help="LR scheduler type")
     parser.add_argument("--max-grad-norm", type=float, default=1.0, help="Gradient clipping norm")
     parser.add_argument("--output-dir", default="./model_output", help="Directory to save the model")
+    parser.add_argument("--log-file", help="Optional path to write metrics as JSON")
     args = parser.parse_args()
 
     config = TrainingConfig(
@@ -146,6 +154,7 @@ def main() -> None:
         warmup_steps=args.warmup_steps,
         lr_scheduler_type=args.lr_scheduler,
         max_grad_norm=args.max_grad_norm,
+        log_file=args.log_file,
     )
     train_model(config)
 

@@ -8,3 +8,4 @@ def test_training_config_defaults():
     assert cfg.warmup_steps == 0
     assert cfg.lr_scheduler_type == "linear"
     assert cfg.max_grad_norm == 1.0
+    assert cfg.log_file is None
