@@ -31,6 +31,12 @@ class PromptBanditOptimizer(PromptOptimizer):
         counts = [0 for _ in candidates]
         values = [0.0 for _ in candidates]
 
+        # Initialize estimates with one sample of each arm
+        for i, cand in enumerate(candidates):
+            reward = self.reward_fn(cand)
+            counts[i] = 1
+            values[i] = reward
+
         for _ in range(self.iterations):
             if random.random() < self.epsilon:
                 idx = random.randrange(len(candidates))

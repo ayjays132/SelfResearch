@@ -156,6 +156,21 @@ best = annealer.optimize_prompt("Write a summary")
 print(best)
 ```
 
+### Reinforcement Learning Prompt Optimization
+
+`PromptRLOptimizer` applies a simple Q-learning strategy to refine prompts
+based on a custom reward function. It explores variations of the base prompt
+over multiple episodes and learns which prompts yield the highest reward.
+
+```python
+from analysis.prompt_rl_optimizer import PromptRLOptimizer
+
+# Reward prefers longer prompts
+rl = PromptRLOptimizer("distilgpt2", reward_fn=len, episodes=5, epsilon=0.1)
+best = rl.optimize_prompt("Write a summary")
+print(best)
+```
+
 
 
 ## License
