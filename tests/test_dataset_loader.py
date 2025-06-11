@@ -13,9 +13,12 @@ class DummyTokenizer:
 
 def test_load_and_tokenize_patch():
     dummy_ds = Dataset.from_dict({"text": ["hello", "world"]})
-    with patch("data.dataset_loader.load_dataset", return_value=dummy_ds), \
-         patch("data.dataset_loader.AutoTokenizer.from_pretrained", return_value=DummyTokenizer()):
-        tokenized = load_and_tokenize("dummy", "train", "dummy")
+    with patch("data.dataset_loader.load_dataset", return_value=dummy_ds) as load_mock, \
+         patch("data.dataset_loader.AutoTokenizer.from_pretrained", return_value=DummyTokenizer()), \
+         patch.object(dummy_ds, "shuffle", return_value=dummy_ds) as shuffle_mock:
+        tokenized = load_and_tokenize("dummy", "train", "dummy", shuffle=True, seed=123)
+        shuffle_mock.assert_called_once_with(seed=123)
+        load_mock.assert_called_once()
     assert len(tokenized) == 2
     assert "input_ids" in tokenized.column_names
 
