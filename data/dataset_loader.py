@@ -22,6 +22,7 @@ def load_and_tokenize(
     streaming: bool = False,
     shuffle: bool = False,
     seed: int = 42,
+    drop_duplicates: bool = False,
 ) -> Dataset:
     """Load a dataset, optionally shuffle, and tokenize it with optional caching.
 
@@ -37,6 +38,7 @@ def load_and_tokenize(
         streaming: If ``True``, stream the dataset instead of loading it fully.
         shuffle: Whether to shuffle the dataset prior to tokenization (ignored when streaming).
         seed: RNG seed used for shuffling.
+        drop_duplicates: If ``True``, remove duplicate samples based on ``text_column``.
 
     Returns:
         The tokenized dataset formatted with PyTorch tensors.
@@ -48,6 +50,15 @@ def load_and_tokenize(
     dataset = load_dataset(dataset_name, split=split, streaming=streaming)
     if shuffle and not streaming:
         dataset = dataset.shuffle(seed=seed)
+    if drop_duplicates and not streaming:
+        seen = set()
+        def _unique(example):
+            text = example[text_column]
+            if text in seen:
+                return False
+            seen.add(text)
+            return True
+        dataset = dataset.filter(_unique)
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
 
     def tokenize(batch: Any) -> Any:
@@ -85,6 +96,8 @@ def load_dataset_splits(
     streaming: bool = False,
     shuffle_train: bool = False,
     shuffle_eval: bool = False,
+    drop_duplicates_train: bool = False,
+    drop_duplicates_eval: bool = False,
     seed: int = 42,
 ) -> Tuple[Dataset, Optional[Dataset]]:
     """Load and tokenize train/eval dataset splits.
@@ -103,6 +116,8 @@ def load_dataset_splits(
         streaming: If ``True``, stream splits instead of loading them fully.
         shuffle_train: Whether to shuffle the training split prior to tokenization.
         shuffle_eval: Whether to shuffle the evaluation split prior to tokenization.
+        drop_duplicates_train: Remove duplicates from the training split.
+        drop_duplicates_eval: Remove duplicates from the evaluation split.
         seed: RNG seed used for shuffling.
 
     Returns:
@@ -121,6 +136,7 @@ def load_dataset_splits(
         streaming=streaming,
         shuffle=shuffle_train,
         seed=seed,
+        drop_duplicates=drop_duplicates_train,
     )
     eval_ds = None
     if eval_split:
@@ -136,6 +152,7 @@ def load_dataset_splits(
             streaming=streaming,
             shuffle=shuffle_eval,
             seed=seed,
+            drop_duplicates=drop_duplicates_eval,
         )
     return train_ds, eval_ds
 

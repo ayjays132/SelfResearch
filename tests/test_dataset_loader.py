@@ -46,3 +46,12 @@ def test_load_local_json_dataset(tmp_path):
         ds = load_local_json_dataset(str(json_file), "dummy")
     assert len(ds) == 2
     assert "input_ids" in ds.column_names
+
+
+def test_load_and_tokenize_drop_duplicates():
+    ds = Dataset.from_dict({"text": ["a", "b", "a"]})
+    with patch("data.dataset_loader.load_dataset", return_value=ds), \
+         patch("data.dataset_loader.AutoTokenizer.from_pretrained", return_value=DummyTokenizer()):
+        tokenized = load_and_tokenize("dummy", "train", "dummy", drop_duplicates=True)
+    assert len(tokenized) == 2
+

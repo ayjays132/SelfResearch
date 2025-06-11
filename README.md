@@ -64,17 +64,21 @@ from data.dataset_loader import load_and_tokenize
 ds = load_and_tokenize("ag_news", "train[:100]", "distilgpt2", cache_dir="./cache/ag_news_train")
 ```
 
+`load_and_tokenize` also supports `drop_duplicates=True` to remove repeated
+text samples before tokenization.
+
 New training loops, datasets or evaluation scripts can be added under these
 modules, keeping the code organized as described in `AGENTS.md`.
 
 ## Dataset Analysis
 The `analysis` module provides utilities for computing statistics on tokenized
-datasets. `analyze_tokenized_dataset` reports metrics such as average length,
-vocabulary size, lexical diversity and the most frequent token bigrams.
+datasets. `analyze_tokenized_dataset` now reports additional metrics such as
+token entropy and optional trigram frequencies alongside average length,
+vocabulary size and lexical diversity.
 Run it from the command line:
 
 ```bash
-python3 -m analysis.dataset_analyzer ag_news train distilgpt2 --top-k 3
+python3 -m analysis.dataset_analyzer ag_news train distilgpt2 --top-k 3 --trigrams
 ```
 
 ## License
