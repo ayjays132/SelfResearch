@@ -34,7 +34,7 @@ The project follows a simple structure so new functionality can be added easily:
 * `peer_collab/` – collaboration server for shared notes and feedback
 * `security/` – user authentication and ethical flagging
 * `data/` – helpers for loading and tokenizing datasets
-* `analysis/` – dataset statistics utilities
+* `analysis/` – dataset statistics utilities and prompt engineering tools
 * `models/` – wrappers around HuggingFace models
 * `train/` – simple training loops
 * `eval/` – evaluation utilities such as perplexity measurement
@@ -80,10 +80,21 @@ samples by semantic similarity using transformer embeddings.
 `compute_tsne_embeddings` generates 2D t-SNE coordinates for visualizing
 dataset structure.
 Run it from the command line:
-
 ```bash
 python3 -m analysis.dataset_analyzer ag_news train distilgpt2 --top-k 3 --trigrams
 ```
+
+## Prompt Optimization
+The `PromptOptimizer` class generates prompt variations and scores them using perplexity. It returns the best-scoring prompt so you can iteratively refine instructions or dataset prompts.
+
+Example usage:
+```python
+from analysis.prompt_optimizer import PromptOptimizer
+opt = PromptOptimizer("distilgpt2")
+print(opt.optimize_prompt("Summarize the research article:"))
+```
+
+
 
 ## License
 This repository is provided for research and experimentation purposes only.
