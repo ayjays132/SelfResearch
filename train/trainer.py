@@ -13,13 +13,28 @@ from transformers import (
     AutoTokenizer,
     Trainer,
     TrainingArguments,
+    EarlyStoppingCallback,
 )
 from data.dataset_loader import load_dataset_splits
 
 
 @dataclass
 class TrainingConfig:
-    """Configuration for model training."""
+    """Configuration for language model training.
+
+    Attributes:
+        model_name: Model identifier from the HuggingFace Hub.
+        dataset_name: Name of the dataset to load.
+        train_split: Dataset split used for training.
+        eval_split: Optional evaluation split.
+        text_column: Column containing text samples.
+        output_dir: Directory to save trained models.
+        epochs: Number of training epochs.
+        batch_size: Per-device batch size.
+        lr: Learning rate.
+        grad_accum: Steps for gradient accumulation.
+        device: Optional override for computation device.
+    """
 
     model_name: str
     dataset_name: str
@@ -30,6 +45,7 @@ class TrainingConfig:
     epochs: int = 1
     batch_size: int = 2
     lr: float = 5e-5
+    grad_accum: int = 2
     device: Optional[str] = None
 
 
@@ -56,6 +72,11 @@ def train_model(config: TrainingConfig) -> None:
         learning_rate=config.lr,
         logging_steps=10,
         save_steps=50,
+        gradient_accumulation_steps=config.grad_accum,
+        evaluation_strategy="steps" if eval_ds is not None else "no",
+        eval_steps=50 if eval_ds is not None else None,
+        load_best_model_at_end=eval_ds is not None,
+        metric_for_best_model="eval_loss" if eval_ds is not None else None,
         report_to="none",
     )
 
@@ -78,6 +99,7 @@ def train_model(config: TrainingConfig) -> None:
         eval_dataset=eval_ds,
         tokenizer=tokenizer,
         compute_metrics=compute_metrics if eval_ds is not None else None,
+        callbacks=[EarlyStoppingCallback(early_stopping_patience=3)] if eval_ds is not None else None,
     )
 
     trainer.train()
@@ -95,6 +117,7 @@ def main() -> None:
     parser.add_argument("--text-column", default="text", help="Name of the text column")
     parser.add_argument("--epochs", type=int, default=1, help="Number of training epochs")
     parser.add_argument("--batch-size", type=int, default=2, help="Batch size")
+    parser.add_argument("--grad-accum", type=int, default=2, help="Gradient accumulation steps")
     parser.add_argument("--output-dir", default="./model_output", help="Directory to save the model")
     args = parser.parse_args()
 
@@ -107,6 +130,7 @@ def main() -> None:
         output_dir=args.output_dir,
         epochs=args.epochs,
         batch_size=args.batch_size,
+        grad_accum=args.grad_accum,
     )
     train_model(config)
 
