@@ -77,6 +77,8 @@ token entropy and optional trigram frequencies alongside average length,
 vocabulary size and lexical diversity.
 The module also includes `cluster_dataset_embeddings` for grouping dataset
 samples by semantic similarity using transformer embeddings.
+`compute_tsne_embeddings` generates 2D t-SNE coordinates for visualizing
+dataset structure.
 Run it from the command line:
 
 ```bash

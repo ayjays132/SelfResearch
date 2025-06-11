@@ -10,6 +10,7 @@ import math
 
 import numpy as np
 from sklearn.cluster import KMeans
+from sklearn.manifold import TSNE
 from transformers import AutoModel, AutoTokenizer
 import torch
 
@@ -143,6 +144,61 @@ def cluster_dataset_embeddings(
     kmeans = KMeans(n_clusters=num_clusters, random_state=42)
     labels = kmeans.fit_predict(embeddings_arr)
     return kmeans, labels.tolist()
+
+
+def compute_tsne_embeddings(
+    dataset: Dataset,
+    model_name: str,
+    *,
+    device: Optional[str] = None,
+    batch_size: int = 8,
+    perplexity: float = 30.0,
+) -> np.ndarray:
+    """Compute 2D t-SNE embeddings for dataset samples.
+
+    The dataset must contain ``input_ids`` and ``attention_mask`` columns.
+
+    Parameters
+    ----------
+    dataset:
+        Tokenized ``Dataset`` with ``input_ids`` and ``attention_mask``.
+    model_name:
+        Name of a transformer model providing hidden states for embeddings.
+    device:
+        Optional device specifier (defaults to CUDA if available).
+    batch_size:
+        Batch size used when computing embeddings.
+    perplexity:
+        t-SNE perplexity parameter controlling neighborhood size.
+
+    Returns
+    -------
+    np.ndarray
+        Array of shape ``(len(dataset), 2)`` containing t-SNE coordinates.
+    """
+
+    device_t = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModel.from_pretrained(model_name).to(device_t)
+
+    embeddings = []
+    for i in range(0, len(dataset), batch_size):
+        batch = dataset[i : i + batch_size]
+        if "input_ids" not in batch or "attention_mask" not in batch:
+            raise ValueError("Dataset must contain 'input_ids' and 'attention_mask'.")
+        input_ids = torch.tensor(batch["input_ids"], device=device_t)
+        attention_mask = torch.tensor(batch["attention_mask"], device=device_t)
+        with torch.no_grad():
+            outputs = model(input_ids=input_ids, attention_mask=attention_mask)
+            hidden = outputs.last_hidden_state
+            mask = attention_mask.unsqueeze(-1)
+            pooled = (hidden * mask).sum(dim=1) / mask.sum(dim=1)
+        embeddings.append(pooled.cpu().numpy())
+    embeddings_arr = np.concatenate(embeddings, axis=0)
+
+    tsne = TSNE(n_components=2, perplexity=perplexity, random_state=42)
+    coords = tsne.fit_transform(embeddings_arr)
+    return coords
 
 
 def analyze_dataset(

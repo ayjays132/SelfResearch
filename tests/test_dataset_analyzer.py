@@ -1,5 +1,6 @@
 from unittest.mock import patch
 from datasets import Dataset
+import numpy as np
 import pytest
 
 import torch
@@ -7,6 +8,7 @@ from analysis.dataset_analyzer import (
     analyze_tokenized_dataset,
     analyze_dataset,
     cluster_dataset_embeddings,
+    compute_tsne_embeddings,
 )
 
 
@@ -56,4 +58,29 @@ def test_cluster_dataset_embeddings():
 
     assert len(labels) == 2
     assert hasattr(km, "cluster_centers_")
+
+
+def test_compute_tsne_embeddings():
+    ds = Dataset.from_dict({
+        "input_ids": [[1, 2], [3, 4]],
+        "attention_mask": [[1, 1], [1, 1]],
+    })
+
+    class DummyModel:
+        def to(self, device):
+            return self
+
+        def __call__(self, input_ids, attention_mask):
+            batch_size, seq_len = input_ids.shape
+            hidden = torch.ones(batch_size, seq_len, 2)
+            return type("Output", (), {"last_hidden_state": hidden})
+
+    with patch("analysis.dataset_analyzer.AutoTokenizer.from_pretrained"), \
+         patch("analysis.dataset_analyzer.AutoModel.from_pretrained", return_value=DummyModel()), \
+         patch("analysis.dataset_analyzer.TSNE") as tsne_mock:
+        tsne_instance = tsne_mock.return_value
+        tsne_instance.fit_transform.return_value = np.array([[0.0, 0.0], [1.0, 1.0]])
+        coords = compute_tsne_embeddings(ds, "dummy", device="cpu", batch_size=1, perplexity=0.5)
+
+    assert coords.shape == (2, 2)
 
