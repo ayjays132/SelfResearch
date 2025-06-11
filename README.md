@@ -94,6 +94,19 @@ opt = PromptOptimizer("distilgpt2")
 print(opt.optimize_prompt("Summarize the research article:"))
 ```
 
+### Advanced Prompt Optimization
+For more precise control, `AdvancedPromptOptimizer` combines perplexity with
+semantic similarity of sentence embeddings. This helps retain the intent of the
+original prompt while improving clarity.
+
+```python
+from analysis.advanced_prompt_optimizer import AdvancedPromptOptimizer
+adv = AdvancedPromptOptimizer(
+    "distilgpt2", embedding_model="sentence-transformers/paraphrase-MiniLM-L6-v2"
+)
+print(adv.optimize_prompt("Summarize the research article:"))
+```
+
 
 
 ## License
