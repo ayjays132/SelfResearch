@@ -18,3 +18,17 @@ def test_load_and_tokenize_patch():
         tokenized = load_and_tokenize("dummy", "train", "dummy")
     assert len(tokenized) == 2
     assert "input_ids" in tokenized.column_names
+
+
+def test_load_and_tokenize_cache(tmp_path):
+    dummy_ds = Dataset.from_dict({"text": ["hello"]})
+    with patch("data.dataset_loader.load_dataset", return_value=dummy_ds), \
+         patch("data.dataset_loader.AutoTokenizer.from_pretrained", return_value=DummyTokenizer()):
+        tokenized = load_and_tokenize("dummy", "train", "dummy", cache_dir=str(tmp_path))
+    assert len(tokenized) == 1
+    # Call again to load from disk
+    with patch("data.dataset_loader.load_from_disk", return_value=tokenized) as load_disk_mock, \
+         patch("data.dataset_loader.load_dataset") as load_ds_mock:
+        tokenized2 = load_and_tokenize("dummy", "train", "dummy", cache_dir=str(tmp_path))
+        load_disk_mock.assert_called_once()
+        load_ds_mock.assert_not_called()
