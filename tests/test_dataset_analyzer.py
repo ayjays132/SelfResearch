@@ -2,7 +2,12 @@ from unittest.mock import patch
 from datasets import Dataset
 import pytest
 
-from analysis.dataset_analyzer import analyze_tokenized_dataset, analyze_dataset
+import torch
+from analysis.dataset_analyzer import (
+    analyze_tokenized_dataset,
+    analyze_dataset,
+    cluster_dataset_embeddings,
+)
 
 
 def test_analyze_tokenized_dataset():
@@ -28,4 +33,27 @@ def test_analyze_dataset_patch():
     assert stats["top_tokens"] == [1]
     assert stats["top_bigrams"] == [[1, 2]]
     assert stats["lexical_diversity"] == pytest.approx(1.0)
+
+
+def test_cluster_dataset_embeddings():
+    ds = Dataset.from_dict({
+        "input_ids": [[1, 2], [3, 4]],
+        "attention_mask": [[1, 1], [1, 1]],
+    })
+
+    class DummyModel:
+        def to(self, device):
+            return self
+
+        def __call__(self, input_ids, attention_mask):
+            batch_size, seq_len = input_ids.shape
+            hidden = torch.ones(batch_size, seq_len, 2)
+            return type("Output", (), {"last_hidden_state": hidden})
+
+    with patch("analysis.dataset_analyzer.AutoTokenizer.from_pretrained"), \
+         patch("analysis.dataset_analyzer.AutoModel.from_pretrained", return_value=DummyModel()):
+        km, labels = cluster_dataset_embeddings(ds, "dummy", num_clusters=2, device="cpu", batch_size=1)
+
+    assert len(labels) == 2
+    assert hasattr(km, "cluster_centers_")
 

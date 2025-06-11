@@ -75,6 +75,8 @@ The `analysis` module provides utilities for computing statistics on tokenized
 datasets. `analyze_tokenized_dataset` now reports additional metrics such as
 token entropy and optional trigram frequencies alongside average length,
 vocabulary size and lexical diversity.
+The module also includes `cluster_dataset_embeddings` for grouping dataset
+samples by semantic similarity using transformer embeddings.
 Run it from the command line:
 
 ```bash
