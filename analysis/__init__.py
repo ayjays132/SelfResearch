@@ -11,3 +11,4 @@ from .advanced_prompt_optimizer import AdvancedPromptOptimizer
 from .prompt_augmenter import PromptAugmenter
 from .prompt_evolver import PromptEvolver
 from .prompt_bandit_optimizer import PromptBanditOptimizer
+from .prompt_annealing_optimizer import PromptAnnealingOptimizer

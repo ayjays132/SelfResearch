@@ -142,6 +142,20 @@ best = bandit.optimize_prompt("Write a summary")
 print(best)
 ```
 
+### Simulated Annealing Prompt Optimization
+
+`PromptAnnealingOptimizer` explores prompt variations using a simulated annealing strategy. It
+accepts or rejects new prompts based on a temperature schedule, allowing occasional
+worse prompts early on to escape local minima.
+
+```python
+from analysis.prompt_annealing_optimizer import PromptAnnealingOptimizer
+
+annealer = PromptAnnealingOptimizer("distilgpt2", temperature=1.0, cooling=0.8, steps=5)
+best = annealer.optimize_prompt("Write a summary")
+print(best)
+```
+
 
 
 ## License
