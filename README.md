@@ -36,6 +36,7 @@ The project follows a simple structure so new functionality can be added easily:
 * `data/` – helpers for loading and tokenizing datasets
 * `models/` – wrappers around HuggingFace models
 * `train/` – simple training loops
+* `eval/` – evaluation utilities such as perplexity measurement
 
 The `train` module contains utilities for fine-tuning language models with
 CUDA support. Training now accepts separate train and evaluation splits and
@@ -43,6 +44,13 @@ reports perplexity after each epoch. Run `--help` to see all options:
 
 ```bash
 python3 -m train.trainer --help
+```
+
+The `eval` module includes a script to compute perplexity for a model on a
+dataset:
+
+```bash
+python3 -m eval.language_model_evaluator gpt2 ag_news --split test
 ```
 
 New training loops, datasets or evaluation scripts can be added under these
