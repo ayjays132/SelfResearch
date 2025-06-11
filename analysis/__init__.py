@@ -14,3 +14,4 @@ from .prompt_bandit_optimizer import PromptBanditOptimizer
 from .prompt_annealing_optimizer import PromptAnnealingOptimizer
 from .prompt_rl_optimizer import PromptRLOptimizer
 from .prompt_bayes_optimizer import BayesianPromptOptimizer
+from .meta_prompt_optimizer import MetaPromptOptimizer

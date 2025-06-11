@@ -171,6 +171,20 @@ best = rl.optimize_prompt("Write a summary")
 print(best)
 ```
 
+### Meta Prompt Optimization
+
+`MetaPromptOptimizer` chains multiple optimizers (bandit, annealing, and
+reinforcement learning) to search a broader space of prompt variations and
+select the overall best prompt.
+
+```python
+from analysis.meta_prompt_optimizer import MetaPromptOptimizer
+
+meta = MetaPromptOptimizer("distilgpt2")
+best = meta.optimize_prompt("Write a summary")
+print(best)
+```
+
 
 
 ## License
