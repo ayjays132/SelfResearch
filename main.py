@@ -8,6 +8,7 @@ from simulation_lab.experiment_simulator import ExperimentSimulator
 from peer_collab.collaboration_server import CollaborationServer
 from assessment.rubric_grader import RubricGrader
 from security.auth_and_ethics import AuthAndEthics
+from data.dataset_loader import load_and_tokenize
 
 def main():
     # Determine device (CUDA or CPU)
@@ -24,6 +25,11 @@ def main():
     experiment_simulator = ExperimentSimulator(device=device)
     rubric_grader = RubricGrader(device=device)
     auth_ethics = AuthAndEthics(device=device)
+
+    # --- Demonstrate Dataset Loading ---
+    print("\n--- Demonstrating Dataset Loading ---")
+    tokenized_ds = load_and_tokenize("ag_news", "train[:100]", "distilgpt2")
+    print(f"Loaded {len(tokenized_ds)} tokenized samples")
 
     # --- Demonstrate Research Workflow --- 
     print("\n--- Demonstrating Research Workflow (Topic Selection) ---")

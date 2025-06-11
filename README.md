@@ -33,6 +33,7 @@ The project follows a simple structure so new functionality can be added easily:
 - `assessment/` – rubric-based grading tools
 - `peer_collab/` – collaboration server for shared notes and feedback
 - `security/` – user authentication and ethical flagging
+- `data/` – helpers for loading and tokenizing datasets
 
 New training loops, datasets or evaluation scripts can be added under new modules, keeping the code organized as described in `AGENTS.md`.
 
