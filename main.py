@@ -1,6 +1,7 @@
 
+"""Entry point demonstrating the various SelfResearch modules."""
+
 import torch
-import os
 
 from research_workflow.topic_selector import TopicSelector
 from digital_literacy.source_evaluator import SourceEvaluator

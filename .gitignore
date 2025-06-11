@@ -1,0 +1,19 @@
+# Python caches
+__pycache__/
+*.pyc
+
+# Virtual environments
+.env/
+venv/
+
+# Data and model outputs
+model_output/
+*.png
+
+# Temporary or system files
+.cache/
+.browser_data_dir/
+.pki/
+.secrets/
+.npm/
+.local/

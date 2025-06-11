@@ -27,15 +27,25 @@ The modules rely on the HuggingFace `transformers` library. You can edit each co
 
 ## Extending the Pipeline
 The project follows a simple structure so new functionality can be added easily:
-- `research_workflow/` – topic selection utilities
-- `digital_literacy/` – source evaluation and academic search
-- `simulation_lab/` – physics/biology simulations and data generation
-- `assessment/` – rubric-based grading tools
-- `peer_collab/` – collaboration server for shared notes and feedback
-- `security/` – user authentication and ethical flagging
-- `data/` – helpers for loading and tokenizing datasets
+* `research_workflow/` – topic selection utilities
+* `digital_literacy/` – source evaluation and academic search
+* `simulation_lab/` – physics/biology simulations and data generation
+* `assessment/` – rubric-based grading tools
+* `peer_collab/` – collaboration server for shared notes and feedback
+* `security/` – user authentication and ethical flagging
+* `data/` – helpers for loading and tokenizing datasets
+* `models/` – wrappers around HuggingFace models
+* `train/` – simple training loops
 
-New training loops, datasets or evaluation scripts can be added under new modules, keeping the code organized as described in `AGENTS.md`.
+The new `train` module contains utilities for fine-tuning language models with
+CUDA support. Run a basic training job as follows:
+
+```bash
+python3 -m train.trainer --help
+```
+
+New training loops, datasets or evaluation scripts can be added under these
+modules, keeping the code organized as described in `AGENTS.md`.
 
 ## License
 This repository is provided for research and experimentation purposes only.
