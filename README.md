@@ -117,6 +117,16 @@ aug = PromptAugmenter("distilgpt2")
 prompts = aug.augment_dataset(["Write an abstract about AI"], n_variations=2)
 ```
 
+### Evolutionary Prompt Engineering
+
+`PromptEvolver` applies a simple genetic algorithm to refine prompts over several generations.
+
+```python
+from analysis.prompt_evolver import PromptEvolver
+pe = PromptEvolver("distilgpt2")
+print(pe.evolve_prompt("Describe the benefits of renewable energy"))
+```
+
 
 
 ## License
