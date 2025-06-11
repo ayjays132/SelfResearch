@@ -127,6 +127,21 @@ pe = PromptEvolver("distilgpt2")
 print(pe.evolve_prompt("Describe the benefits of renewable energy"))
 ```
 
+### Bandit-Based Prompt Optimization
+
+`PromptBanditOptimizer` employs an epsilon-greedy multi-armed bandit strategy
+to iteratively explore and exploit prompt variations based on a custom reward
+function.
+
+```python
+from analysis.prompt_bandit_optimizer import PromptBanditOptimizer
+
+# Reward function prefers longer prompts
+bandit = PromptBanditOptimizer("distilgpt2", reward_fn=len, epsilon=0.1)
+best = bandit.optimize_prompt("Write a summary")
+print(best)
+```
+
 
 
 ## License
