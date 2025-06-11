@@ -107,6 +107,16 @@ adv = AdvancedPromptOptimizer(
 print(adv.optimize_prompt("Summarize the research article:"))
 ```
 
+### Prompt Augmentation
+
+`PromptAugmenter` generates additional prompt variations to expand training datasets.
+
+```python
+from analysis.prompt_augmenter import PromptAugmenter
+aug = PromptAugmenter("distilgpt2")
+prompts = aug.augment_dataset(["Write an abstract about AI"], n_variations=2)
+```
+
 
 
 ## License

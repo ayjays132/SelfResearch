@@ -8,3 +8,4 @@ from .dataset_analyzer import (
 )
 from .prompt_optimizer import PromptOptimizer
 from .advanced_prompt_optimizer import AdvancedPromptOptimizer
+from .prompt_augmenter import PromptAugmenter
