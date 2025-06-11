@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """Utilities for analyzing tokenized datasets."""
 
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 import argparse
 import json
 from collections import Counter
@@ -36,6 +36,7 @@ def analyze_tokenized_dataset(
     vocab = set()
     length_counter: Counter[int] = Counter()
     token_freq: Counter[int] = Counter()
+    bigram_freq: Counter[Tuple[int, int]] = Counter()
     samples = 0
 
     for sample in dataset:
@@ -44,12 +45,16 @@ def analyze_tokenized_dataset(
         vocab.update(ids)
         length_counter[len(ids)] += 1
         token_freq.update(ids)
+        # Update bigram frequency with consecutive token pairs
+        bigram_freq.update(zip(ids[:-1], ids[1:]))
         samples += 1
         if max_samples is not None and samples >= max_samples:
             break
 
     avg_len = float(total_len / samples) if samples else 0.0
     top_tokens = [tok for tok, _ in token_freq.most_common(top_k)]
+    top_bigrams = [list(bg) for bg, _ in bigram_freq.most_common(top_k)]
+    lexical_diversity = float(len(vocab) / total_len) if total_len else 0.0
 
     return {
         "samples": samples,
@@ -57,6 +62,8 @@ def analyze_tokenized_dataset(
         "vocab_size": len(vocab),
         "length_distribution": dict(length_counter),
         "top_tokens": top_tokens,
+        "top_bigrams": top_bigrams,
+        "lexical_diversity": lexical_diversity,
     }
 
 

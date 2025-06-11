@@ -34,6 +34,7 @@ The project follows a simple structure so new functionality can be added easily:
 * `peer_collab/` – collaboration server for shared notes and feedback
 * `security/` – user authentication and ethical flagging
 * `data/` – helpers for loading and tokenizing datasets
+* `analysis/` – dataset statistics utilities
 * `models/` – wrappers around HuggingFace models
 * `train/` – simple training loops
 * `eval/` – evaluation utilities such as perplexity measurement
@@ -65,6 +66,16 @@ ds = load_and_tokenize("ag_news", "train[:100]", "distilgpt2", cache_dir="./cach
 
 New training loops, datasets or evaluation scripts can be added under these
 modules, keeping the code organized as described in `AGENTS.md`.
+
+## Dataset Analysis
+The `analysis` module provides utilities for computing statistics on tokenized
+datasets. `analyze_tokenized_dataset` reports metrics such as average length,
+vocabulary size, lexical diversity and the most frequent token bigrams.
+Run it from the command line:
+
+```bash
+python3 -m analysis.dataset_analyzer ag_news train distilgpt2 --top-k 3
+```
 
 ## License
 This repository is provided for research and experimentation purposes only.

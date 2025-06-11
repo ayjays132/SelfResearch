@@ -1,5 +1,6 @@
 from unittest.mock import patch
 from datasets import Dataset
+import pytest
 
 from analysis.dataset_analyzer import analyze_tokenized_dataset, analyze_dataset
 
@@ -12,6 +13,8 @@ def test_analyze_tokenized_dataset():
     assert stats["vocab_size"] == 5
     assert stats["length_distribution"] == {3: 1, 4: 1}
     assert stats["top_tokens"] == [2, 3]
+    assert stats["top_bigrams"] == [[2, 3], [1, 2]]
+    assert stats["lexical_diversity"] == pytest.approx(5 / 7)
 
 
 def test_analyze_dataset_patch():
@@ -21,3 +24,5 @@ def test_analyze_dataset_patch():
     assert stats["samples"] == 2
     assert stats["vocab_size"] == 5
     assert stats["top_tokens"] == [3]
+    assert stats["top_bigrams"] == [[1, 2]]
+    assert stats["lexical_diversity"] == pytest.approx(1.0)
