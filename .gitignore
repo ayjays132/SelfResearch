@@ -17,3 +17,5 @@ model_output/
 .secrets/
 .npm/
 .local/
+.pytest_cache/
+.ipynb_checkpoints/

@@ -37,8 +37,9 @@ The project follows a simple structure so new functionality can be added easily:
 * `models/` – wrappers around HuggingFace models
 * `train/` – simple training loops
 
-The new `train` module contains utilities for fine-tuning language models with
-CUDA support. Run a basic training job as follows:
+The `train` module contains utilities for fine-tuning language models with
+CUDA support. Training now accepts separate train and evaluation splits and
+reports perplexity after each epoch. Run `--help` to see all options:
 
 ```bash
 python3 -m train.trainer --help
