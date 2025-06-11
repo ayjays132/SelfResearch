@@ -17,6 +17,8 @@ def load_and_tokenize(
     text_column: str = "text",
     batch_size: int = 1000,
     cache_dir: Optional[str] = None,
+    num_proc: Optional[int] = None,
+    max_length: Optional[int] = None,
 ) -> Dataset:
     """Load a dataset and tokenize it with optional caching.
 
@@ -26,6 +28,9 @@ def load_and_tokenize(
         tokenizer_name: Name of the tokenizer/model to tokenize with.
         text_column: Name of the text column to tokenize.
         batch_size: Batch size for tokenization.
+        cache_dir: Optional path for caching the tokenized dataset.
+        num_proc: Optional number of processes for parallel tokenization.
+        max_length: Optional maximum token length for truncation.
 
     Returns:
         The tokenized dataset formatted with PyTorch tensors.
@@ -38,9 +43,19 @@ def load_and_tokenize(
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
 
     def tokenize(batch: Any) -> Any:
-        return tokenizer(batch[text_column], padding="max_length", truncation=True)
+        return tokenizer(
+            batch[text_column],
+            padding="max_length",
+            truncation=True,
+            max_length=max_length,
+        )
 
-    tokenized = dataset.map(tokenize, batched=True, batch_size=batch_size)
+    tokenized = dataset.map(
+        tokenize,
+        batched=True,
+        batch_size=batch_size,
+        num_proc=num_proc,
+    )
     tokenized.set_format(type="torch", columns=["input_ids", "attention_mask"])
     if cache_path:
         cache_path.mkdir(parents=True, exist_ok=True)
@@ -57,6 +72,8 @@ def load_dataset_splits(
     batch_size: int = 1000,
     train_cache_dir: Optional[str] = None,
     eval_cache_dir: Optional[str] = None,
+    num_proc: Optional[int] = None,
+    max_length: Optional[int] = None,
 ) -> Tuple[Dataset, Optional[Dataset]]:
     """Load and tokenize train/eval dataset splits.
 
@@ -69,6 +86,8 @@ def load_dataset_splits(
         batch_size: Batch size for tokenization.
         train_cache_dir: Optional path to cache the tokenized train split.
         eval_cache_dir: Optional path to cache the tokenized eval split.
+        num_proc: Optional number of processes for parallel tokenization.
+        max_length: Optional maximum token length for truncation.
 
     Returns:
         A tuple of ``(train_dataset, eval_dataset)`` where ``eval_dataset`` may
@@ -81,6 +100,8 @@ def load_dataset_splits(
         text_column=text_column,
         batch_size=batch_size,
         cache_dir=train_cache_dir,
+        num_proc=num_proc,
+        max_length=max_length,
     )
     eval_ds = None
     if eval_split:
@@ -91,6 +112,8 @@ def load_dataset_splits(
             text_column=text_column,
             batch_size=batch_size,
             cache_dir=eval_cache_dir,
+            num_proc=num_proc,
+            max_length=max_length,
         )
     return train_ds, eval_ds
 
