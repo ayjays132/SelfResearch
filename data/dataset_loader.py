@@ -19,6 +19,7 @@ def load_and_tokenize(
     cache_dir: Optional[str] = None,
     num_proc: Optional[int] = None,
     max_length: Optional[int] = None,
+    streaming: bool = False,
 ) -> Dataset:
     """Load a dataset and tokenize it with optional caching.
 
@@ -31,15 +32,16 @@ def load_and_tokenize(
         cache_dir: Optional path for caching the tokenized dataset.
         num_proc: Optional number of processes for parallel tokenization.
         max_length: Optional maximum token length for truncation.
+        streaming: If ``True``, stream the dataset instead of loading it fully.
 
     Returns:
         The tokenized dataset formatted with PyTorch tensors.
     """
     cache_path = Path(cache_dir) if cache_dir else None
-    if cache_path and cache_path.exists():
+    if cache_path and (cache_path / "dataset_info.json").exists():
         return load_from_disk(str(cache_path))
 
-    dataset = load_dataset(dataset_name, split=split)
+    dataset = load_dataset(dataset_name, split=split, streaming=streaming)
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
 
     def tokenize(batch: Any) -> Any:
@@ -56,8 +58,8 @@ def load_and_tokenize(
         batch_size=batch_size,
         num_proc=num_proc,
     )
-    tokenized.set_format(type="torch", columns=["input_ids", "attention_mask"])
-    if cache_path:
+    tokenized = tokenized.with_format("torch", columns=["input_ids", "attention_mask"])
+    if cache_path and not streaming:
         cache_path.mkdir(parents=True, exist_ok=True)
         tokenized.save_to_disk(str(cache_path))
     return tokenized
@@ -74,6 +76,7 @@ def load_dataset_splits(
     eval_cache_dir: Optional[str] = None,
     num_proc: Optional[int] = None,
     max_length: Optional[int] = None,
+    streaming: bool = False,
 ) -> Tuple[Dataset, Optional[Dataset]]:
     """Load and tokenize train/eval dataset splits.
 
@@ -88,6 +91,7 @@ def load_dataset_splits(
         eval_cache_dir: Optional path to cache the tokenized eval split.
         num_proc: Optional number of processes for parallel tokenization.
         max_length: Optional maximum token length for truncation.
+        streaming: If ``True``, stream splits instead of loading them fully.
 
     Returns:
         A tuple of ``(train_dataset, eval_dataset)`` where ``eval_dataset`` may
@@ -102,6 +106,7 @@ def load_dataset_splits(
         cache_dir=train_cache_dir,
         num_proc=num_proc,
         max_length=max_length,
+        streaming=streaming,
     )
     eval_ds = None
     if eval_split:
@@ -114,8 +119,51 @@ def load_dataset_splits(
             cache_dir=eval_cache_dir,
             num_proc=num_proc,
             max_length=max_length,
+            streaming=streaming,
         )
     return train_ds, eval_ds
+
+
+def load_local_json_dataset(
+    json_path: str,
+    tokenizer_name: str,
+    text_key: str = "text",
+    batch_size: int = 1000,
+    num_proc: Optional[int] = None,
+    max_length: Optional[int] = None,
+) -> Dataset:
+    """Load and tokenize a local JSON or JSONL dataset file.
+
+    Args:
+        json_path: Path to the JSON/JSONL file.
+        tokenizer_name: Pretrained tokenizer name.
+        text_key: Key in each JSON object containing text.
+        batch_size: Batch size for tokenization.
+        num_proc: Optional number of processes for parallel tokenization.
+        max_length: Optional maximum token length for truncation.
+
+    Returns:
+        A tokenized ``Dataset``.
+    """
+    dataset = load_dataset("json", data_files=json_path, split="train")
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+
+    def tokenize(batch: Any) -> Any:
+        return tokenizer(
+            batch[text_key],
+            padding="max_length",
+            truncation=True,
+            max_length=max_length,
+        )
+
+    tokenized = dataset.map(
+        tokenize,
+        batched=True,
+        batch_size=batch_size,
+        num_proc=num_proc,
+    )
+    tokenized.set_format(type="torch", columns=["input_ids", "attention_mask"])
+    return tokenized
 
 
 if __name__ == "__main__":
