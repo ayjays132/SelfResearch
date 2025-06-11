@@ -4,10 +4,12 @@ from unittest.mock import patch
 
 def test_generate_variations():
     with patch('analysis.prompt_optimizer.pipeline') as pipe_mock:
-        pipe_mock.return_value = lambda prompt, num_return_sequences, max_new_tokens: [
+        pipe_mock.return_value = (
+            lambda prompt, num_return_sequences, max_new_tokens, do_sample=True, temperature=1.0: [
             {"generated_text": prompt + " variant 1"},
             {"generated_text": prompt + " variant 2"},
-        ]
+            ]
+        )
         opt = PromptOptimizer('distilgpt2')
         variations = opt.generate_variations('Test prompt', n_variations=2)
     assert len(variations) == 2
