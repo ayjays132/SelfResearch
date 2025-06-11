@@ -20,8 +20,10 @@ def load_and_tokenize(
     num_proc: Optional[int] = None,
     max_length: Optional[int] = None,
     streaming: bool = False,
+    shuffle: bool = False,
+    seed: int = 42,
 ) -> Dataset:
-    """Load a dataset and tokenize it with optional caching.
+    """Load a dataset, optionally shuffle, and tokenize it with optional caching.
 
     Args:
         dataset_name: Name or path of the dataset to load (e.g. ``"ag_news"``).
@@ -33,6 +35,8 @@ def load_and_tokenize(
         num_proc: Optional number of processes for parallel tokenization.
         max_length: Optional maximum token length for truncation.
         streaming: If ``True``, stream the dataset instead of loading it fully.
+        shuffle: Whether to shuffle the dataset prior to tokenization (ignored when streaming).
+        seed: RNG seed used for shuffling.
 
     Returns:
         The tokenized dataset formatted with PyTorch tensors.
@@ -42,6 +46,8 @@ def load_and_tokenize(
         return load_from_disk(str(cache_path))
 
     dataset = load_dataset(dataset_name, split=split, streaming=streaming)
+    if shuffle and not streaming:
+        dataset = dataset.shuffle(seed=seed)
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
 
     def tokenize(batch: Any) -> Any:
@@ -77,6 +83,9 @@ def load_dataset_splits(
     num_proc: Optional[int] = None,
     max_length: Optional[int] = None,
     streaming: bool = False,
+    shuffle_train: bool = False,
+    shuffle_eval: bool = False,
+    seed: int = 42,
 ) -> Tuple[Dataset, Optional[Dataset]]:
     """Load and tokenize train/eval dataset splits.
 
@@ -92,6 +101,9 @@ def load_dataset_splits(
         num_proc: Optional number of processes for parallel tokenization.
         max_length: Optional maximum token length for truncation.
         streaming: If ``True``, stream splits instead of loading them fully.
+        shuffle_train: Whether to shuffle the training split prior to tokenization.
+        shuffle_eval: Whether to shuffle the evaluation split prior to tokenization.
+        seed: RNG seed used for shuffling.
 
     Returns:
         A tuple of ``(train_dataset, eval_dataset)`` where ``eval_dataset`` may
@@ -107,6 +119,8 @@ def load_dataset_splits(
         num_proc=num_proc,
         max_length=max_length,
         streaming=streaming,
+        shuffle=shuffle_train,
+        seed=seed,
     )
     eval_ds = None
     if eval_split:
@@ -120,6 +134,8 @@ def load_dataset_splits(
             num_proc=num_proc,
             max_length=max_length,
             streaming=streaming,
+            shuffle=shuffle_eval,
+            seed=seed,
         )
     return train_ds, eval_ds
 
