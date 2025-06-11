@@ -23,9 +23,27 @@ class PromptOptimizer:
             device=0 if self.device.type == "cuda" else -1,
         )
 
-    def generate_variations(self, base_prompt: str, n_variations: int = 5) -> List[str]:
-        """Generate prompt variations from a base prompt."""
-        outputs = self.generator(base_prompt, num_return_sequences=n_variations, max_new_tokens=20)
+    def generate_variations(
+        self, base_prompt: str, n_variations: int = 5, *, temperature: float = 1.0
+    ) -> List[str]:
+        """Generate prompt variations from a base prompt.
+
+        Parameters
+        ----------
+        base_prompt:
+            Prompt used as the starting point for generation.
+        n_variations:
+            Number of variations to produce.
+        temperature:
+            Sampling temperature controlling randomness of generations.
+        """
+        outputs = self.generator(
+            base_prompt,
+            num_return_sequences=n_variations,
+            max_new_tokens=20,
+            do_sample=True,
+            temperature=temperature,
+        )
         variations = []
         for out in outputs:
             text = out["generated_text"]
