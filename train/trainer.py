@@ -5,12 +5,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 import argparse
+import math
 
 import torch
-from transformers import (AutoModelForCausalLM, AutoTokenizer, Trainer,
-                          TrainingArguments)
-
-from data.dataset_loader import load_and_tokenize
+from transformers import (
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    Trainer,
+    TrainingArguments,
+)
+from data.dataset_loader import load_dataset_splits
 
 
 @dataclass
@@ -19,7 +23,9 @@ class TrainingConfig:
 
     model_name: str
     dataset_name: str
-    split: str
+    train_split: str
+    eval_split: Optional[str] = None
+    text_column: str = "text"
     output_dir: str = "./model_output"
     epochs: int = 1
     batch_size: int = 2
@@ -29,8 +35,17 @@ class TrainingConfig:
 
 def train_model(config: TrainingConfig) -> None:
     """Train a causal language model using HuggingFace Trainer."""
-    device = torch.device(config.device or ("cuda" if torch.cuda.is_available() else "cpu"))
-    tokenized_ds = load_and_tokenize(config.dataset_name, config.split, config.model_name)
+    device = torch.device(
+        config.device or ("cuda" if torch.cuda.is_available() else "cpu")
+    )
+    train_ds, eval_ds = load_dataset_splits(
+        config.dataset_name,
+        config.model_name,
+        train_split=config.train_split,
+        eval_split=config.eval_split,
+        text_column=config.text_column,
+    )
+
     model = AutoModelForCausalLM.from_pretrained(config.model_name).to(device)
     tokenizer = AutoTokenizer.from_pretrained(config.model_name)
 
@@ -44,8 +59,30 @@ def train_model(config: TrainingConfig) -> None:
         report_to="none",
     )
 
-    trainer = Trainer(model=model, args=training_args, train_dataset=tokenized_ds, tokenizer=tokenizer)
+    def compute_metrics(eval_pred):
+        logits, labels = eval_pred
+        shift_logits = torch.tensor(logits[:, :-1, :])
+        shift_labels = torch.tensor(labels[:, 1:])
+        loss_fct = torch.nn.CrossEntropyLoss()
+        loss = loss_fct(
+            shift_logits.reshape(-1, shift_logits.size(-1)),
+            shift_labels.reshape(-1),
+        )
+        perplexity = math.exp(loss.item())
+        return {"perplexity": perplexity}
+
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_ds,
+        eval_dataset=eval_ds,
+        tokenizer=tokenizer,
+        compute_metrics=compute_metrics if eval_ds is not None else None,
+    )
+
     trainer.train()
+    if eval_ds is not None:
+        trainer.evaluate()
     trainer.save_model(config.output_dir)
 
 
@@ -53,7 +90,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Train a causal language model")
     parser.add_argument("model_name", help="Model identifier from the HuggingFace hub")
     parser.add_argument("dataset", help="Dataset name from the HuggingFace hub")
-    parser.add_argument("split", help="Dataset split, e.g. 'train[:100]'")
+    parser.add_argument("train_split", help="Training split, e.g. 'train[:100]'")
+    parser.add_argument("--eval-split", help="Optional evaluation split")
+    parser.add_argument("--text-column", default="text", help="Name of the text column")
     parser.add_argument("--epochs", type=int, default=1, help="Number of training epochs")
     parser.add_argument("--batch-size", type=int, default=2, help="Batch size")
     parser.add_argument("--output-dir", default="./model_output", help="Directory to save the model")
@@ -62,7 +101,9 @@ def main() -> None:
     config = TrainingConfig(
         model_name=args.model_name,
         dataset_name=args.dataset,
-        split=args.split,
+        train_split=args.train_split,
+        eval_split=args.eval_split,
+        text_column=args.text_column,
         output_dir=args.output_dir,
         epochs=args.epochs,
         batch_size=args.batch_size,
