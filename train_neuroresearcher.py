@@ -311,6 +311,34 @@ class CosinePromptUpdateCallback(TrainerCallback):
             )
 
 
+class EarlyStopper(TrainerCallback):
+    """Stop training if evaluation loss does not improve."""
+
+    def __init__(self, patience: int) -> None:
+        self.patience = patience
+        self.best_loss: Optional[float] = None
+        self.counter = 0
+
+    def on_evaluate(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        metrics: Dict[str, float],
+        **kwargs: Any,
+    ) -> None:
+        if self.patience <= 0 or "eval_loss" not in metrics:
+            return
+        loss = metrics["eval_loss"]
+        if self.best_loss is None or loss < self.best_loss:
+            self.best_loss = loss
+            self.counter = 0
+        else:
+            self.counter += 1
+            if self.counter >= self.patience:
+                control.should_training_stop = True
+
+
 # ---------------------------------------------------------------------------
 #                        TRAINING PHASES
 # ---------------------------------------------------------------------------
@@ -329,6 +357,9 @@ def run_supervised(
     fp16: bool,
     bf16: bool,
     device: torch.device,
+    *,
+    patience: int = 0,
+    debug: bool = False,
 ) -> List[float]:
     """Run supervised LM training and return loss history."""
     _init_tag_tokens(tokenizer)
@@ -336,6 +367,8 @@ def run_supervised(
     prompt_cb = CosinePromptUpdateCallback(
         optimizer, epochs, f"Session { _SESSION_ID }"
     )
+    if debug:
+        train_ds = train_ds.select(range(min(100, len(train_ds))))
     collator = DataCollatorForLanguageModeling(tokenizer, mlm=False)
     training_args = TrainingArguments(
         output_dir=output_dir,
@@ -346,7 +379,7 @@ def run_supervised(
         warmup_steps=warmup_steps,
         fp16=fp16,
         bf16=bf16,
-        logging_steps=10,
+        logging_steps=1 if debug else 10,
         save_steps=500,
         report_to="none",
     )
@@ -364,6 +397,9 @@ def run_supervised(
             if "loss" in logs:
                 lm_losses.append(logs["loss"])
 
+    callbacks: List[TrainerCallback] = [prompt_cb, LossTracker()]
+    if patience > 0:
+        callbacks.append(EarlyStopper(patience))
     trainer = Trainer(
         model=model,
         args=training_args,
@@ -371,7 +407,7 @@ def run_supervised(
         tokenizer=tokenizer,
         data_collator=collator,
         compute_loss=compute_loss,
-        callbacks=[prompt_cb, LossTracker()],
+        callbacks=callbacks,
     )
     trainer.train()
     trainer.save_model(output_dir)
@@ -389,6 +425,8 @@ def run_ppo(
     clip: float,
     kl_coef: float,
     device: torch.device,
+    *,
+    debug: bool = False,
 ) -> List[float]:
     """Fine-tune the model with PPO using a frozen reward model."""
     reward_model = AutoModelForSequenceClassification.from_pretrained(
@@ -416,6 +454,8 @@ def run_ppo(
     rewards: List[float] = []
     step = 0
 
+    if debug:
+        dataset = dataset.select(range(min(32, len(dataset))))
     for _ in range(epochs):
         for sample in dataset:
             prompt = (
@@ -461,9 +501,14 @@ def run_self_play(
     episodes: int,
     turns: int,
     device: torch.device,
+    *,
+    debug: bool = False,
 ) -> List[str]:
     """Generate conversation transcripts via self-play."""
     transcripts: List[str] = []
+    if debug:
+        episodes = min(episodes, 1)
+        dataset = dataset.select(range(min(10, len(dataset))))
     for i in range(episodes):
         sample = dataset[i % len(dataset)]
         prompt = (
@@ -582,6 +627,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--layers", type=int, default=24)
     parser.add_argument("--session-id", required=True)
     parser.add_argument("--debug", action="store_true")
+    parser.add_argument(
+        "--patience",
+        type=int,
+        default=0,
+        help="Early stopping patience (0 to disable)",
+    )
     return parser.parse_args()
 
 
@@ -641,6 +692,8 @@ def main() -> None:
         args.fp16,
         args.bf16,
         device,
+        patience=args.patience,
+        debug=args.debug,
     )
 
     rewards: List[float] = []
@@ -656,6 +709,7 @@ def main() -> None:
             args.ppo_clip,
             args.ppo_kl,
             device,
+            debug=args.debug,
         )
 
     if args.self_play_episodes > 0:
@@ -668,6 +722,7 @@ def main() -> None:
             args.self_play_episodes,
             args.self_play_turns,
             device,
+            debug=args.debug,
         )
 
     plot_metrics(losses, rewards, _ROUTER_WEIGHTS, args.output_dir)
