@@ -167,6 +167,7 @@ def setup_model(
     layers: int,
     device: torch.device,
     gradient_ckpt: bool,
+    enable_meta_memory: bool,
 ) -> HFNeuroResearcherModel:
     """Create and prepare the NeuroResearcher model."""
     config = NeuroResearcherConfig(
@@ -179,7 +180,7 @@ def setup_model(
         pad_token_id=tokenizer.pad_token_id,
         n_positions=tokenizer.model_max_length,
     )
-    model = HFNeuroResearcherModel(config, enable_meta_memory=True)
+    model = HFNeuroResearcherModel(config, enable_meta_memory=enable_meta_memory)
     model.resize_token_embeddings(len(tokenizer))
     if gradient_ckpt:
         model.gradient_checkpointing_enable()
@@ -364,9 +365,11 @@ def run_supervised(
     """Run supervised LM training and return loss history."""
     _init_tag_tokens(tokenizer)
     optimizer = MetaPromptOptimizer(tokenizer.name_or_path, device)
-    prompt_cb = CosinePromptUpdateCallback(
-        optimizer, epochs, f"Session { _SESSION_ID }"
-    )
+    base_prompt = f"Session { _SESSION_ID }"
+    if len(train_ds) > 0 and "text" in train_ds[0]:
+        sample_text = str(train_ds[0]["text"])[:50]
+        base_prompt += f" | {sample_text}"
+    prompt_cb = CosinePromptUpdateCallback(optimizer, epochs, base_prompt)
     if debug:
         train_ds = train_ds.select(range(min(100, len(train_ds))))
     collator = DataCollatorForLanguageModeling(tokenizer, mlm=False)
@@ -594,6 +597,21 @@ def plot_metrics(
 
 
 # ---------------------------------------------------------------------------
+#                            ENVIRONMENT SETUP
+# ---------------------------------------------------------------------------
+
+def setup_environment() -> torch.device:
+    """Return PyTorch device and enable GPU features when available."""
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if device.type == "cuda":
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
+        if hasattr(torch.backends.cuda, "enable_flash_sdp"):
+            torch.backends.cuda.enable_flash_sdp(True)
+    return device
+
+
+# ---------------------------------------------------------------------------
 #                                 CLI
 # ---------------------------------------------------------------------------
 
@@ -626,6 +644,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--heads", type=int, default=16)
     parser.add_argument("--layers", type=int, default=24)
     parser.add_argument("--session-id", required=True)
+    parser.add_argument(
+        "--no-meta-memory",
+        action="store_true",
+        help="Disable meta-memory storage during training",
+    )
     parser.add_argument("--debug", action="store_true")
     parser.add_argument(
         "--patience",
@@ -649,12 +672,7 @@ def main() -> None:
     args = parse_args()
     global _SESSION_ID
     _SESSION_ID = args.session_id
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    if device.type == "cuda":
-        torch.backends.cuda.matmul.allow_tf32 = True
-        torch.backends.cudnn.allow_tf32 = True
-        if hasattr(torch.backends.cuda, "enable_flash_sdp"):
-            torch.backends.cuda.enable_flash_sdp(True)
+    device = setup_environment()
     os.makedirs(args.output_dir, exist_ok=True)
     try:
         if os.path.isdir(args.model_path) and not os.path.exists(args.model_path):
@@ -667,6 +685,7 @@ def main() -> None:
             args.layers,
             device,
             args.gradient_checkpointing,
+            enable_meta_memory=not args.no_meta_memory,
         )
         train_ds = prepare_datasets(
             args.dataset,
@@ -674,6 +693,7 @@ def main() -> None:
             args.split,
             tokenizer.model_max_length,
         )
+        console.print(f"Loaded {len(train_ds)} training examples")
     except Exception as exc:
         console.print(f"[red]Initialization failed: {exc}")
         return
