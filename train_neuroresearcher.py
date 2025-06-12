@@ -32,10 +32,47 @@ try:
     from rich.console import Console
     import matplotlib.pyplot as plt
 except ImportError as exc:  # pragma: no cover
-    print(f"Missing dependency: {exc}. Please install via\n  pip install transformers datasets trl rich matplotlib")
-    raise
+    import subprocess
+    import sys
+
+    print(
+        f"Missing dependency: {exc}. Attempting install...\n"
+        "Run `pip install transformers datasets trl rich matplotlib` if this fails."
+    )
+    subprocess.check_call(
+        [
+            sys.executable,
+            "-m",
+            "pip",
+            "install",
+            "transformers",
+            "datasets",
+            "trl",
+            "rich",
+            "matplotlib",
+        ]
+    )
+    import torch
+    from torch import nn
+    from datasets import load_dataset
+    from transformers import (
+        AutoTokenizer,
+        GPT2Config,
+        GPT2LMHeadModel,
+        DataCollatorForLanguageModeling,
+        Trainer,
+        TrainingArguments,
+        TrainerCallback,
+        TrainerState,
+        TrainerControl,
+        AutoModelForSequenceClassification,
+    )
+    from trl import PPOTrainer, PPOConfig, create_reference_model
+    from rich.console import Console
+    import matplotlib.pyplot as plt
 
 console = Console()
+
 
 # ---------------------------------------------------------------------------
 #                              META MEMORY
@@ -67,7 +104,9 @@ class NeuroResearcherConfig(GPT2Config):
 class HFNeuroResearcherModel(GPT2LMHeadModel):
     config_class = NeuroResearcherConfig
 
-    def __init__(self, config: NeuroResearcherConfig, *, enable_meta_memory: bool = False) -> None:
+    def __init__(
+        self, config: NeuroResearcherConfig, *, enable_meta_memory: bool = False
+    ) -> None:
         super().__init__(config)
         self.router = nn.Linear(config.n_embd, config.n_head * config.num_tools)
         self.meta_memory = MetaMemory() if enable_meta_memory else None
@@ -93,7 +132,9 @@ class HFNeuroResearcherModel(GPT2LMHeadModel):
         logits = outputs.logits
         router_logits = self.router(last_hidden[:, -1])
         router_weights = torch.softmax(
-            router_logits.view(last_hidden.size(0), self.config.n_head, self.config.num_tools),
+            router_logits.view(
+                last_hidden.size(0), self.config.n_head, self.config.num_tools
+            ),
             dim=-1,
         )
         if self.enable_meta_memory and store_memory and session_id:
@@ -109,6 +150,7 @@ class HFNeuroResearcherModel(GPT2LMHeadModel):
 # ---------------------------------------------------------------------------
 #                         SETUP FUNCTIONS
 # ---------------------------------------------------------------------------
+
 
 def setup_tokenizer(model_name: str) -> AutoTokenizer:
     """Load tokenizer and ensure padding token."""
@@ -210,7 +252,9 @@ def _apply_weights(ids: List[int]) -> List[float]:
     return weights
 
 
-def compute_loss(model: HFNeuroResearcherModel, inputs: Dict[str, torch.Tensor]) -> torch.Tensor:
+def compute_loss(
+    model: HFNeuroResearcherModel, inputs: Dict[str, torch.Tensor]
+) -> torch.Tensor:
     """Compute weighted language modeling loss and log model internals."""
     input_ids = inputs["input_ids"] if "input_ids" in inputs else inputs["labels"]
     attention_mask = inputs.get("attention_mask")
@@ -226,7 +270,9 @@ def compute_loss(model: HFNeuroResearcherModel, inputs: Dict[str, torch.Tensor])
     shift_logits = logits[..., :-1, :].contiguous()
     shift_labels = input_ids[..., 1:].contiguous()
     loss_fct = nn.CrossEntropyLoss(reduction="none")
-    losses = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+    losses = loss_fct(
+        shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1)
+    )
     losses = losses.view(shift_labels.size())
     weights = []
     for row in shift_labels:
@@ -234,7 +280,7 @@ def compute_loss(model: HFNeuroResearcherModel, inputs: Dict[str, torch.Tensor])
         weights.append(_apply_weights(ids))
     weight_tensor = torch.tensor(weights, device=losses.device)
     mask = shift_labels.ne(-100)
-    weighted = (losses * weight_tensor * mask)
+    weighted = losses * weight_tensor * mask
     return weighted.sum() / mask.sum()
 
 
@@ -260,12 +306,15 @@ class CosinePromptUpdateCallback(TrainerCallback):
         interval = max(1, int(1 + math.cos(math.pi * epoch / self.total_epochs) * 2))
         if epoch % interval == 0:
             self.current_prompt = self.optimizer.optimize_prompt(self.current_prompt)
-            console.print(f"[PromptUpdateCallback] Updated prompt: {self.current_prompt}")
+            console.print(
+                f"[PromptUpdateCallback] Updated prompt: {self.current_prompt}"
+            )
 
 
 # ---------------------------------------------------------------------------
 #                        TRAINING PHASES
 # ---------------------------------------------------------------------------
+
 
 def run_supervised(
     model: HFNeuroResearcherModel,
@@ -284,7 +333,9 @@ def run_supervised(
     """Run supervised LM training and return loss history."""
     _init_tag_tokens(tokenizer)
     optimizer = MetaPromptOptimizer(tokenizer.name_or_path, device)
-    prompt_cb = CosinePromptUpdateCallback(optimizer, epochs, f"Session { _SESSION_ID }")
+    prompt_cb = CosinePromptUpdateCallback(
+        optimizer, epochs, f"Session { _SESSION_ID }"
+    )
     collator = DataCollatorForLanguageModeling(tokenizer, mlm=False)
     training_args = TrainingArguments(
         output_dir=output_dir,
@@ -302,7 +353,14 @@ def run_supervised(
     lm_losses: List[float] = []
 
     class LossTracker(TrainerCallback):
-        def on_log(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, logs: Dict[str, float], **kwargs: Any) -> None:
+        def on_log(
+            self,
+            args: TrainingArguments,
+            state: TrainerState,
+            control: TrainerControl,
+            logs: Dict[str, float],
+            **kwargs: Any,
+        ) -> None:
             if "loss" in logs:
                 lm_losses.append(logs["loss"])
 
@@ -333,25 +391,60 @@ def run_ppo(
     device: torch.device,
 ) -> List[float]:
     """Fine-tune the model with PPO using a frozen reward model."""
-    reward_model = AutoModelForSequenceClassification.from_pretrained("ayjays132/NR1-rm").to(device).eval()
-    ppo_config = PPOConfig(batch_size=batch_size, learning_rate=5e-5, cliprange=clip, kl_coef=kl_coef)
+    reward_model = AutoModelForSequenceClassification.from_pretrained(
+        "ayjays132/NR1-rm"
+    ).to(device)
+    for param in reward_model.parameters():
+        param.requires_grad = False
+    reward_model.eval()
+
+    ppo_config = PPOConfig(
+        batch_size=batch_size,
+        learning_rate=5e-5,
+        cliprange=clip,
+        kl_coef=kl_coef,
+    )
     ref_model = create_reference_model(model)
-    ppo_trainer = PPOTrainer(ppo_config, model, model, ref_model, reward_model=reward_model, tokenizer=tokenizer)
+    ppo_trainer = PPOTrainer(
+        ppo_config,
+        policy_model=model,
+        value_model=model,
+        ref_model=ref_model,
+        reward_model=reward_model,
+        tokenizer=tokenizer,
+    )
     rewards: List[float] = []
+    step = 0
 
     for _ in range(epochs):
         for sample in dataset:
-            prompt = sample.get("text", "")[:256]
+            prompt = (
+                sample.get("prompt")
+                or sample.get("text")
+                or sample.get("question")
+                or ""
+            )[:256]
             inputs = tokenizer(prompt, return_tensors="pt").to(device)
             with torch.no_grad():
-                generated = model.generate(**inputs, max_new_tokens=50, do_sample=True, top_p=0.95)
-            response = tokenizer.decode(generated[0][inputs["input_ids"].size(1):], skip_special_tokens=True)
+                generated = model.generate(
+                    **inputs,
+                    max_new_tokens=50,
+                    do_sample=True,
+                    top_p=0.95,
+                )
+            response = tokenizer.decode(
+                generated[0][inputs["input_ids"].size(1) :], skip_special_tokens=True
+            )
             rm_inp = tokenizer(prompt + response, return_tensors="pt").to(device)
             with torch.no_grad():
                 rm_out = reward_model(**rm_inp)
                 reward = float(rm_out.logits.squeeze()[0])
-            ppo_trainer.step([prompt], [response], [reward])
+            ppo_trainer.step([prompt], [response], rewards=[reward])
             rewards.append(reward)
+            step += 1
+            if step % 10 == 0:
+                console.print(f"[PPO] step {step}: reward={reward:.4f}")
+
     ppo_trainer.save_pretrained(output_dir)
     return rewards
 
@@ -360,7 +453,13 @@ def run_ppo(
 #                         METRICS & PLOTTING
 # ---------------------------------------------------------------------------
 
-def plot_metrics(losses: List[float], rewards: List[float], weights: List[torch.Tensor], output_dir: str) -> None:
+
+def plot_metrics(
+    losses: List[float],
+    rewards: List[float],
+    weights: List[torch.Tensor],
+    output_dir: str,
+) -> None:
     """Save training plots to disk."""
     os.makedirs(os.path.join(output_dir, "plots"), exist_ok=True)
     steps = list(range(1, len(losses) + 1))
@@ -409,11 +508,16 @@ def plot_metrics(losses: List[float], rewards: List[float], weights: List[torch.
 #                                 CLI
 # ---------------------------------------------------------------------------
 
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train the NeuroResearcher model")
     parser.add_argument("--dataset", default="ag_news", help="Dataset name")
     parser.add_argument("--split", default="train", help="Dataset split")
-    parser.add_argument("--model-path", default="ayjays132/NeuroReasoner-1-NR-1", help="Pretrained model path")
+    parser.add_argument(
+        "--model-path",
+        default="ayjays132/NeuroReasoner-1-NR-1",
+        help="Pretrained model path",
+    )
     parser.add_argument("--output-dir", default="./nr_outputs")
     parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument("--batch-size", type=int, default=2)
@@ -443,6 +547,7 @@ _SESSION_ID: str = ""
 #                                MAIN
 # ---------------------------------------------------------------------------
 
+
 def main() -> None:
     args = parse_args()
     global _SESSION_ID
@@ -455,9 +560,23 @@ def main() -> None:
             torch.backends.cuda.enable_flash_sdp(True)
     os.makedirs(args.output_dir, exist_ok=True)
     try:
+        if os.path.isdir(args.model_path) and not os.path.exists(args.model_path):
+            raise FileNotFoundError(f"Model path {args.model_path} not found")
         tokenizer = setup_tokenizer(args.model_path)
-        model = setup_model(tokenizer, args.embed_dim, args.heads, args.layers, device, args.gradient_checkpointing)
-        train_ds = prepare_datasets(args.dataset, tokenizer, args.split, tokenizer.model_max_length)
+        model = setup_model(
+            tokenizer,
+            args.embed_dim,
+            args.heads,
+            args.layers,
+            device,
+            args.gradient_checkpointing,
+        )
+        train_ds = prepare_datasets(
+            args.dataset,
+            tokenizer,
+            args.split,
+            tokenizer.model_max_length,
+        )
     except Exception as exc:
         console.print(f"[red]Initialization failed: {exc}")
         return
@@ -494,7 +613,9 @@ def main() -> None:
         )
 
     plot_metrics(losses, rewards, _ROUTER_WEIGHTS, args.output_dir)
-    console.print(f"\n[green]🎉 Training complete — all artifacts saved under {args.output_dir}")
+    console.print(
+        f"\n[green]🎉 Training complete — all artifacts saved under {args.output_dir}"
+    )
 
 
 if __name__ == "__main__":
