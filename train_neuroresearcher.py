@@ -1,4 +1,9 @@
-"""Self-research training pipeline for the NeuroResearcher architecture."""
+"""Self-research training pipeline for the NeuroResearcher architecture.
+
+This script orchestrates supervised pretraining and optional PPO fine-tuning
+using the NeuroResearcher model. It includes meta-memory, prompt optimisation
+and weighted language-model loss for reasoning tokens.
+"""
 
 from __future__ import annotations
 
@@ -146,15 +151,14 @@ def prepare_datasets(
     split: str,
     max_length: int,
 ) -> Any:
-    """Load and tokenize a dataset split."""
+    """Load and tokenize a dataset split for language modeling."""
     ds = load_dataset(dataset_name, split=split)
 
     def tok(batch: Dict[str, Any]) -> Dict[str, Any]:
         return tokenizer(batch["text"], truncation=True, max_length=max_length)
 
     ds = ds.map(tok, batched=True)
-    ds = ds.rename_column("input_ids", "labels")
-    ds.set_format(type="torch", columns=["labels", "attention_mask"])
+    ds.set_format(type="torch", columns=["input_ids", "attention_mask", "text"])
     return ds
 
 
@@ -167,6 +171,9 @@ _reason_e = None
 _internal_s = None
 _internal_e = None
 _final_s = None
+
+_ROUTER_WEIGHTS: List[torch.Tensor] = []
+_HIDDEN_STATES: List[torch.Tensor] = []
 
 
 def _init_tag_tokens(tokenizer: AutoTokenizer) -> None:
@@ -204,17 +211,20 @@ def _apply_weights(ids: List[int]) -> List[float]:
 
 
 def compute_loss(model: HFNeuroResearcherModel, inputs: Dict[str, torch.Tensor]) -> torch.Tensor:
-    labels = inputs["labels"]
+    """Compute weighted language modeling loss and log model internals."""
+    input_ids = inputs["input_ids"] if "input_ids" in inputs else inputs["labels"]
     attention_mask = inputs.get("attention_mask")
     outputs = model(
-        input_ids=labels,
+        input_ids=input_ids,
         attention_mask=attention_mask,
-        labels=labels,
+        labels=input_ids,
         session_id=_SESSION_ID,
     )
+    _ROUTER_WEIGHTS.append(outputs["tool_weights"].detach().cpu())
+    _HIDDEN_STATES.append(outputs["hidden_states"].detach().mean(dim=1).cpu())
     logits = outputs["logits"]
     shift_logits = logits[..., :-1, :].contiguous()
-    shift_labels = labels[..., 1:].contiguous()
+    shift_labels = input_ids[..., 1:].contiguous()
     loss_fct = nn.CrossEntropyLoss(reduction="none")
     losses = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
     losses = losses.view(shift_labels.size())
@@ -322,7 +332,7 @@ def run_ppo(
     kl_coef: float,
     device: torch.device,
 ) -> List[float]:
-    """Run PPO fine-tuning if requested."""
+    """Fine-tune the model with PPO using a frozen reward model."""
     reward_model = AutoModelForSequenceClassification.from_pretrained("ayjays132/NR1-rm").to(device).eval()
     ppo_config = PPOConfig(batch_size=batch_size, learning_rate=5e-5, cliprange=clip, kl_coef=kl_coef)
     ref_model = create_reference_model(model)
@@ -403,6 +413,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train the NeuroResearcher model")
     parser.add_argument("--dataset", default="ag_news", help="Dataset name")
     parser.add_argument("--split", default="train", help="Dataset split")
+    parser.add_argument("--model-path", default="ayjays132/NeuroReasoner-1-NR-1", help="Pretrained model path")
     parser.add_argument("--output-dir", default="./nr_outputs")
     parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument("--batch-size", type=int, default=2)
@@ -442,9 +453,14 @@ def main() -> None:
         torch.backends.cudnn.allow_tf32 = True
         if hasattr(torch.backends.cuda, "enable_flash_sdp"):
             torch.backends.cuda.enable_flash_sdp(True)
-    tokenizer = setup_tokenizer("ayjays132/NeuroReasoner-1-NR-1")
-    model = setup_model(tokenizer, args.embed_dim, args.heads, args.layers, device, args.gradient_checkpointing)
-    train_ds = prepare_datasets(args.dataset, tokenizer, args.split, tokenizer.model_max_length)
+    os.makedirs(args.output_dir, exist_ok=True)
+    try:
+        tokenizer = setup_tokenizer(args.model_path)
+        model = setup_model(tokenizer, args.embed_dim, args.heads, args.layers, device, args.gradient_checkpointing)
+        train_ds = prepare_datasets(args.dataset, tokenizer, args.split, tokenizer.model_max_length)
+    except Exception as exc:
+        console.print(f"[red]Initialization failed: {exc}")
+        return
 
     console.print("[bold green]Starting supervised training...")
     losses = run_supervised(
@@ -477,7 +493,7 @@ def main() -> None:
             device,
         )
 
-    plot_metrics(losses, rewards, model.meta_memory.get(args.session_id), args.output_dir)
+    plot_metrics(losses, rewards, _ROUTER_WEIGHTS, args.output_dir)
     console.print(f"\n[green]🎉 Training complete — all artifacts saved under {args.output_dir}")
 
 
