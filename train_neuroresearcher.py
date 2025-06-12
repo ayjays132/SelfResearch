@@ -30,6 +30,8 @@ try:
     )
     from trl import PPOTrainer, PPOConfig, create_reference_model
     from rich.console import Console
+    from rich.progress import track
+    from SelfResearch.data.dataset_loader import load_dataset_splits
     import matplotlib.pyplot as plt
 except ImportError as exc:  # pragma: no cover
     import subprocess
@@ -69,6 +71,8 @@ except ImportError as exc:  # pragma: no cover
     )
     from trl import PPOTrainer, PPOConfig, create_reference_model
     from rich.console import Console
+    from rich.progress import track
+    from SelfResearch.data.dataset_loader import load_dataset_splits
     import matplotlib.pyplot as plt
 
 console = Console()
@@ -191,18 +195,19 @@ def setup_model(
 def prepare_datasets(
     dataset_name: str,
     tokenizer: AutoTokenizer,
-    split: str,
+    train_split: str,
+    eval_split: Optional[str],
     max_length: int,
-) -> Any:
-    """Load and tokenize a dataset split for language modeling."""
-    ds = load_dataset(dataset_name, split=split)
-
-    def tok(batch: Dict[str, Any]) -> Dict[str, Any]:
-        return tokenizer(batch["text"], truncation=True, max_length=max_length)
-
-    ds = ds.map(tok, batched=True)
-    ds.set_format(type="torch", columns=["input_ids", "attention_mask", "text"])
-    return ds
+) -> tuple[Any, Optional[Any]]:
+    """Load tokenized train and optional evaluation datasets."""
+    train_ds, eval_ds = load_dataset_splits(
+        dataset_name,
+        tokenizer.name_or_path,
+        train_split=train_split,
+        eval_split=eval_split,
+        max_length=max_length,
+    )
+    return train_ds, eval_ds
 
 
 # ---------------------------------------------------------------------------
@@ -349,6 +354,7 @@ def run_supervised(
     model: HFNeuroResearcherModel,
     tokenizer: AutoTokenizer,
     train_ds: Any,
+    eval_ds: Optional[Any],
     output_dir: str,
     epochs: int,
     batch_size: int,
@@ -362,7 +368,10 @@ def run_supervised(
     patience: int = 0,
     debug: bool = False,
 ) -> List[float]:
-    """Run supervised LM training and return loss history."""
+    """Run supervised LM training and return loss history.
+
+    If ``eval_ds`` is provided, evaluation occurs at the end of each epoch.
+    """
     _init_tag_tokens(tokenizer)
     optimizer = MetaPromptOptimizer(tokenizer.name_or_path, device)
     base_prompt = f"Session { _SESSION_ID }"
@@ -372,6 +381,8 @@ def run_supervised(
     prompt_cb = CosinePromptUpdateCallback(optimizer, epochs, base_prompt)
     if debug:
         train_ds = train_ds.select(range(min(100, len(train_ds))))
+        if eval_ds is not None:
+            eval_ds = eval_ds.select(range(min(100, len(eval_ds))))
     collator = DataCollatorForLanguageModeling(tokenizer, mlm=False)
     training_args = TrainingArguments(
         output_dir=output_dir,
@@ -385,6 +396,7 @@ def run_supervised(
         logging_steps=1 if debug else 10,
         save_steps=500,
         report_to="none",
+        evaluation_strategy="epoch" if eval_ds is not None else "no",
     )
     lm_losses: List[float] = []
 
@@ -407,6 +419,7 @@ def run_supervised(
         model=model,
         args=training_args,
         train_dataset=train_ds,
+        eval_dataset=eval_ds,
         tokenizer=tokenizer,
         data_collator=collator,
         compute_loss=compute_loss,
@@ -512,7 +525,7 @@ def run_self_play(
     if debug:
         episodes = min(episodes, 1)
         dataset = dataset.select(range(min(10, len(dataset))))
-    for i in range(episodes):
+    for i in track(range(episodes), description="Self-play"):
         sample = dataset[i % len(dataset)]
         prompt = (
             sample.get("prompt")
@@ -620,6 +633,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train the NeuroResearcher model")
     parser.add_argument("--dataset", default="ag_news", help="Dataset name")
     parser.add_argument("--split", default="train", help="Dataset split")
+    parser.add_argument("--eval-split", default=None, help="Evaluation split")
     parser.add_argument(
         "--model-path",
         default="ayjays132/NeuroReasoner-1-NR-1",
@@ -687,13 +701,16 @@ def main() -> None:
             args.gradient_checkpointing,
             enable_meta_memory=not args.no_meta_memory,
         )
-        train_ds = prepare_datasets(
+        train_ds, eval_ds = prepare_datasets(
             args.dataset,
             tokenizer,
             args.split,
+            args.eval_split,
             tokenizer.model_max_length,
         )
         console.print(f"Loaded {len(train_ds)} training examples")
+        if eval_ds is not None:
+            console.print(f"Loaded {len(eval_ds)} evaluation examples")
     except Exception as exc:
         console.print(f"[red]Initialization failed: {exc}")
         return
@@ -703,6 +720,7 @@ def main() -> None:
         model,
         tokenizer,
         train_ds,
+        eval_ds,
         args.output_dir,
         args.epochs,
         args.batch_size,
