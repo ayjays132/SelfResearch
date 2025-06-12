@@ -10,6 +10,7 @@ from peer_collab.collaboration_server import CollaborationServer
 from assessment.rubric_grader import RubricGrader
 from security.auth_and_ethics import AuthAndEthics
 from data.dataset_loader import load_and_tokenize
+from train.trainer import TrainingConfig, train_model
 
 def main():
     # Determine device (CUDA or CPU)
@@ -31,6 +32,19 @@ def main():
     print("\n--- Demonstrating Dataset Loading ---")
     tokenized_ds = load_and_tokenize("ag_news", "train[:100]", "distilgpt2")
     print(f"Loaded {len(tokenized_ds)} tokenized samples")
+
+    # --- Demonstrate Training Pipeline ---
+    print("\n--- Demonstrating Training Pipeline ---")
+    train_cfg = TrainingConfig(
+        model_name="distilgpt2",
+        dataset_name="ag_news",
+        train_split="train[:20]",
+        eval_split="test[:20]",
+        epochs=1,
+        batch_size=2,
+        output_dir="./demo_model",
+    )
+    train_model(train_cfg)
 
     # --- Demonstrate Research Workflow --- 
     print("\n--- Demonstrating Research Workflow (Topic Selection) ---")
