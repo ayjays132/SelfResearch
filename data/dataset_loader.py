@@ -3,11 +3,12 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional, Tuple
+from typing import Any, Optional, Tuple, List
 from pathlib import Path
 
 from datasets import Dataset, load_dataset, load_from_disk
 from transformers import AutoTokenizer
+from analysis.prompt_augmenter import PromptAugmenter
 
 
 def load_and_tokenize(
@@ -197,6 +198,24 @@ def load_local_json_dataset(
     )
     tokenized.set_format(type="torch", columns=["input_ids", "attention_mask"])
     return tokenized
+
+
+def augment_text_dataset(
+    dataset: Dataset,
+    model_name: str,
+    text_column: str = "text",
+    n_variations: int = 1,
+) -> Dataset:
+    """Expand a text dataset using prompt augmentation."""
+
+    augmenter = PromptAugmenter(model_name)
+    records: List[dict] = []
+    for sample in dataset:
+        text = sample[text_column]
+        records.append({text_column: text})
+        for new_text in augmenter.augment_prompt(text, n_variations=n_variations):
+            records.append({text_column: new_text})
+    return Dataset.from_list(records)
 
 
 if __name__ == "__main__":

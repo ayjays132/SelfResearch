@@ -16,6 +16,7 @@ from transformers import (
     TrainingArguments,
     EarlyStoppingCallback,
 )
+from .experiment_tracker import ExperimentTracker, TrackerCallback
 from data.dataset_loader import load_dataset_splits
 
 
@@ -104,6 +105,11 @@ def train_model(config: TrainingConfig) -> None:
         perplexity = math.exp(loss.item())
         return {"perplexity": perplexity}
 
+    tracker = ExperimentTracker()
+    callbacks = [TrackerCallback(tracker)]
+    if eval_ds is not None:
+        callbacks.append(EarlyStoppingCallback(early_stopping_patience=3))
+
     trainer = Trainer(
         model=model,
         args=training_args,
@@ -111,7 +117,7 @@ def train_model(config: TrainingConfig) -> None:
         eval_dataset=eval_ds,
         tokenizer=tokenizer,
         compute_metrics=compute_metrics if eval_ds is not None else None,
-        callbacks=[EarlyStoppingCallback(early_stopping_patience=3)] if eval_ds is not None else None,
+        callbacks=callbacks,
     )
 
     metrics = {}
@@ -120,8 +126,9 @@ def train_model(config: TrainingConfig) -> None:
         metrics = trainer.evaluate()
     trainer.save_model(config.output_dir)
     if config.log_file:
-        with open(config.log_file, "w") as f:
-            json.dump(metrics, f, indent=2)
+        if metrics:
+            tracker.log(final_metrics=metrics)
+        tracker.save(config.log_file)
 
 
 def main() -> None:
