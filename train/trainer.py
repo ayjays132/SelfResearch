@@ -3,7 +3,7 @@ from __future__ import annotations
 """Simple training utilities for language models."""
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, List
 import json
 import argparse
 import math
@@ -17,6 +17,7 @@ from transformers import (
     EarlyStoppingCallback,
 )
 from .experiment_tracker import ExperimentTracker, TrackerCallback
+from transformers import TrainerCallback
 from data.dataset_loader import load_dataset_splits
 
 
@@ -59,7 +60,9 @@ class TrainingConfig:
     log_file: Optional[str] = None
 
 
-def train_model(config: TrainingConfig) -> None:
+def train_model(
+    config: TrainingConfig, *, extra_callbacks: Optional[List[TrainerCallback]] = None
+) -> None:
     """Train a causal language model using HuggingFace Trainer."""
     device = torch.device(
         config.device or ("cuda" if torch.cuda.is_available() else "cpu")
@@ -109,6 +112,8 @@ def train_model(config: TrainingConfig) -> None:
     callbacks = [TrackerCallback(tracker)]
     if eval_ds is not None:
         callbacks.append(EarlyStoppingCallback(early_stopping_patience=3))
+    if extra_callbacks:
+        callbacks.extend(extra_callbacks)
 
     trainer = Trainer(
         model=model,
