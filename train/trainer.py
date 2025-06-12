@@ -1,53 +1,71 @@
 from __future__ import annotations
-
-"""Simple training utilities for language models."""
+"""
+🚀  Premium Training Utilities v2.0  🚀
+A minimal-yet-powerful wrapper around 🤗 Transformers’ `Trainer`
+that focuses purely on **training** (no eval) while staying GPU-savvy,
+mixed-precision-ready, and logging-capable.
+"""
 
 from dataclasses import dataclass
 from typing import Optional, List
-import json
 import argparse
+import json
 import math
-
+import os
 import torch
+
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
     Trainer,
     TrainingArguments,
-    EarlyStoppingCallback,
+    TrainerCallback,
 )
+
+# Local utilities
 from .experiment_tracker import ExperimentTracker, TrackerCallback
-from transformers import TrainerCallback
 from data.dataset_loader import load_dataset_splits
 
 
+# ✨--------------------------------------------------------------------✨
+#                           CONFIGURATION
+# ✨--------------------------------------------------------------------✨
 @dataclass
 class TrainingConfig:
-    """Configuration for language model training.
+    """
+    🎛️ Hyper-parameters & housekeeping
 
-    Attributes:
-        model_name: Model identifier from the HuggingFace Hub.
-        dataset_name: Name of the dataset to load.
-        train_split: Dataset split used for training.
-        eval_split: Optional evaluation split.
-        text_column: Column containing text samples.
-        output_dir: Directory to save trained models.
-        epochs: Number of training epochs.
-        batch_size: Per-device batch size.
-        lr: Learning rate.
-        grad_accum: Steps for gradient accumulation.
-        warmup_steps: Scheduler warmup steps.
-        lr_scheduler_type: Name of the learning rate scheduler.
-        max_grad_norm: Gradient clipping value.
-        device: Optional override for computation device.
-        log_file: Optional path to save training and evaluation metrics.
+    Attributes
+    ----------
+    model_name:       🤗 Hub identifier (or local path)
+    dataset_name:     Name / path understood by `load_dataset_splits`
+    train_split:      Split string (e.g. 'train[:90%]')
+    text_column:      Field containing raw text
+    output_dir:       Where checkpoints land
+    epochs:           Total epochs
+    batch_size:       Per-device batch size
+    lr:               Learning rate
+    grad_accum:       Gradient-accumulation steps
+    warmup_steps:     Scheduler warm-up
+    lr_scheduler_type:One of {linear, cosine, …}
+    max_grad_norm:    Gradient clipping
+    fp16:             Enable float16
+    bf16:             Enable bfloat16
+    gradient_ckpt:    Activate gradient checkpointing
+    device:           Override CUDA/CPU auto-detect
+    log_file:         Optional JSON metrics dump
     """
 
+    # core
     model_name: str
     dataset_name: str
     train_split: str
     eval_split: Optional[str] = None
+
+    # data / text
     text_column: str = "text"
+
+    # training
     output_dir: str = "./model_output"
     epochs: int = 1
     batch_size: int = 2
@@ -56,119 +74,146 @@ class TrainingConfig:
     warmup_steps: int = 0
     lr_scheduler_type: str = "linear"
     max_grad_norm: float = 1.0
+
+    # goodies
+    fp16: bool = False
+    bf16: bool = False
+    gradient_ckpt: bool = False
+
+    # misc
     device: Optional[str] = None
     log_file: Optional[str] = None
 
 
+# ✨--------------------------------------------------------------------✨
+#                           TRAINING LOGIC
+# ✨--------------------------------------------------------------------✨
 def train_model(
-    config: TrainingConfig, *, extra_callbacks: Optional[List[TrainerCallback]] = None
+    cfg: TrainingConfig, *, extra_callbacks: Optional[List[TrainerCallback]] = None
 ) -> None:
-    """Train a causal language model using HuggingFace Trainer."""
-    device = torch.device(
-        config.device or ("cuda" if torch.cuda.is_available() else "cpu")
-    )
-    train_ds, eval_ds = load_dataset_splits(
-        config.dataset_name,
-        config.model_name,
-        train_split=config.train_split,
-        eval_split=config.eval_split,
-        text_column=config.text_column,
+    """Launch a *train-only* run with 🤗 Trainer."""
+
+    # 🌐 Detect device --------------------------------------------------
+    device = torch.device(cfg.device or ("cuda" if torch.cuda.is_available() else "cpu"))
+    if device.type == "cuda":
+        torch.cuda.empty_cache()  # keep VRAM tidy
+        print(f"🟢 Using CUDA device: {torch.cuda.get_device_name(0)}")
+    else:
+        print("🟡 CUDA not found—falling back to CPU.")
+
+    # 📦 Dataset --------------------------------------------------------
+    train_ds, _ = load_dataset_splits(
+        cfg.dataset_name,
+        cfg.model_name,
+        train_split=cfg.train_split,
+        text_column=cfg.text_column,
     )
 
-    model = AutoModelForCausalLM.from_pretrained(config.model_name).to(device)
-    tokenizer = AutoTokenizer.from_pretrained(config.model_name)
+    # 🧠 Model & Tokenizer ---------------------------------------------
+    print("🔄 Loading model & tokenizer…")
+    model = AutoModelForCausalLM.from_pretrained(cfg.model_name)
+    if cfg.gradient_ckpt:
+        model.gradient_checkpointing_enable()
+    model.to(device)
 
+    tokenizer = AutoTokenizer.from_pretrained(cfg.model_name)
+
+    # ⚙️ TrainingArguments ---------------------------------------------
     training_args = TrainingArguments(
-        output_dir=config.output_dir,
-        num_train_epochs=config.epochs,
-        per_device_train_batch_size=config.batch_size,
-        learning_rate=config.lr,
-        logging_steps=10,
-        save_steps=50,
-        gradient_accumulation_steps=config.grad_accum,
-        warmup_steps=config.warmup_steps,
-        lr_scheduler_type=config.lr_scheduler_type,
-        max_grad_norm=config.max_grad_norm,
-        evaluation_strategy="steps" if eval_ds is not None else "no",
-        eval_steps=50 if eval_ds is not None else None,
-        load_best_model_at_end=eval_ds is not None,
-        metric_for_best_model="eval_loss" if eval_ds is not None else None,
+        output_dir=cfg.output_dir,
+        num_train_epochs=cfg.epochs,
+        per_device_train_batch_size=cfg.batch_size,
+        learning_rate=cfg.lr,
+        gradient_accumulation_steps=cfg.grad_accum,
+        warmup_steps=cfg.warmup_steps,
+        lr_scheduler_type=cfg.lr_scheduler_type,
+        max_grad_norm=cfg.max_grad_norm,
+        fp16=cfg.fp16,
+        bf16=cfg.bf16,
+        logging_steps=10,          # frequent logs 📊
+        save_steps=500,
+        save_total_limit=3,        # keep disk usage sane
         report_to="none",
     )
 
-    def compute_metrics(eval_pred):
-        logits, labels = eval_pred
-        shift_logits = torch.tensor(logits[:, :-1, :])
-        shift_labels = torch.tensor(labels[:, 1:])
-        loss_fct = torch.nn.CrossEntropyLoss()
-        loss = loss_fct(
-            shift_logits.reshape(-1, shift_logits.size(-1)),
-            shift_labels.reshape(-1),
-        )
-        perplexity = math.exp(loss.item())
-        return {"perplexity": perplexity}
+    # 🧑‍💻 Callbacks -----------------------------------------------------
+    callbacks: List[TrainerCallback] = extra_callbacks or []
+    tracker = ExperimentTracker() if cfg.log_file else None
+    if tracker:
+        callbacks.append(TrackerCallback(tracker))
 
-    tracker = ExperimentTracker()
-    callbacks = [TrackerCallback(tracker)]
-    if eval_ds is not None:
-        callbacks.append(EarlyStoppingCallback(early_stopping_patience=3))
-    if extra_callbacks:
-        callbacks.extend(extra_callbacks)
-
+    # 🚀 Training -------------------------------------------------------
     trainer = Trainer(
         model=model,
         args=training_args,
         train_dataset=train_ds,
-        eval_dataset=eval_ds,
         tokenizer=tokenizer,
-        compute_metrics=compute_metrics if eval_ds is not None else None,
         callbacks=callbacks,
     )
 
-    metrics = {}
+    print("✨ Starting training!")
     trainer.train()
-    if eval_ds is not None:
-        metrics = trainer.evaluate()
-    trainer.save_model(config.output_dir)
-    if config.log_file:
-        if metrics:
-            tracker.log(final_metrics=metrics)
-        tracker.save(config.log_file)
+    trainer.save_model(cfg.output_dir)
+    tokenizer.save_pretrained(cfg.output_dir)
+
+    # 📝 Metrics dump ---------------------------------------------------
+    if cfg.log_file and tracker:
+        tracker.save(cfg.log_file)
+        print(f"📑 Metrics written to {cfg.log_file}")
+
+    print("✅ Training complete.")
 
 
+# ✨--------------------------------------------------------------------✨
+#                             CLI ENTRY
+# ✨--------------------------------------------------------------------✨
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Train a causal language model")
-    parser.add_argument("model_name", help="Model identifier from the HuggingFace hub")
-    parser.add_argument("dataset", help="Dataset name from the HuggingFace hub")
-    parser.add_argument("train_split", help="Training split, e.g. 'train[:100]'")
-    parser.add_argument("--eval-split", help="Optional evaluation split")
-    parser.add_argument("--text-column", default="text", help="Name of the text column")
-    parser.add_argument("--epochs", type=int, default=1, help="Number of training epochs")
-    parser.add_argument("--batch-size", type=int, default=2, help="Batch size")
-    parser.add_argument("--grad-accum", type=int, default=2, help="Gradient accumulation steps")
-    parser.add_argument("--warmup-steps", type=int, default=0, help="Scheduler warmup steps")
-    parser.add_argument("--lr-scheduler", default="linear", help="LR scheduler type")
-    parser.add_argument("--max-grad-norm", type=float, default=1.0, help="Gradient clipping norm")
-    parser.add_argument("--output-dir", default="./model_output", help="Directory to save the model")
-    parser.add_argument("--log-file", help="Optional path to write metrics as JSON")
+    parser = argparse.ArgumentParser(description="🚀 Train a causal LM (train-only)")
+
+    # Positional
+    parser.add_argument("model_name", help="🤗 Model name-or-path")
+    parser.add_argument("dataset", help="Dataset name/path for `load_dataset_splits`")
+    parser.add_argument("train_split", help="Training split (e.g. 'train[:1000]')")
+
+    # Optional
+    parser.add_argument("--text-column", default="text")
+    parser.add_argument("--epochs", type=int, default=1)
+    parser.add_argument("--batch-size", type=int, default=2)
+    parser.add_argument("--lr", type=float, default=5e-5)
+    parser.add_argument("--grad-accum", type=int, default=2)
+    parser.add_argument("--warmup-steps", type=int, default=0)
+    parser.add_argument("--lr-scheduler", default="linear")
+    parser.add_argument("--max-grad-norm", type=float, default=1.0)
+    parser.add_argument("--fp16", action="store_true")
+    parser.add_argument("--bf16", action="store_true")
+    parser.add_argument("--gradient-ckpt", action="store_true")
+    parser.add_argument("--output-dir", default="./model_output")
+    parser.add_argument("--log-file", help="Write JSON metrics here")
+    parser.add_argument("--device", help="Force 'cuda' or 'cpu'")
+
     args = parser.parse_args()
 
-    config = TrainingConfig(
+    cfg = TrainingConfig(
         model_name=args.model_name,
         dataset_name=args.dataset,
         train_split=args.train_split,
-        eval_split=args.eval_split,
         text_column=args.text_column,
         output_dir=args.output_dir,
         epochs=args.epochs,
         batch_size=args.batch_size,
+        lr=args.lr,
         grad_accum=args.grad_accum,
         warmup_steps=args.warmup_steps,
         lr_scheduler_type=args.lr_scheduler,
         max_grad_norm=args.max_grad_norm,
+        fp16=args.fp16,
+        bf16=args.bf16,
+        gradient_ckpt=args.gradient_ckpt,
+        device=args.device,
         log_file=args.log_file,
     )
-    train_model(config)
+
+    train_model(cfg)
 
 
 if __name__ == "__main__":

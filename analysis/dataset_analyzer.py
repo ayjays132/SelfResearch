@@ -16,7 +16,7 @@ import torch
 
 from datasets import Dataset
 
-from data.dataset_loader import load_and_tokenize
+from SelfResearch.data.dataset_loader import load_and_tokenize
 
 
 def analyze_tokenized_dataset(
