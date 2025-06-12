@@ -294,6 +294,8 @@ def compute_loss(
 #                        CALLBACK FOR PROMPT UPDATES
 # ---------------------------------------------------------------------------
 class CosinePromptUpdateCallback(TrainerCallback):
+    """Periodically optimise the base prompt using a cosine schedule."""
+
     def __init__(self, optimizer: Any, total_epochs: int, base_prompt: str) -> None:
         self.optimizer = optimizer
         self.total_epochs = total_epochs
@@ -563,6 +565,7 @@ def plot_metrics(
     losses: List[float],
     rewards: List[float],
     weights: List[torch.Tensor],
+    hidden_states: List[torch.Tensor],
     output_dir: str,
 ) -> None:
     """Save training plots to disk."""
@@ -602,11 +605,26 @@ def plot_metrics(
     else:
         w_path = ""
 
+    if hidden_states:
+        norms = [hs.norm(dim=1).mean().item() for hs in hidden_states]
+        n_steps = list(range(1, len(norms) + 1))
+        plt.figure()
+        plt.plot(n_steps, norms)
+        plt.xlabel("Training step")
+        plt.ylabel("Hidden state norm")
+        h_path = os.path.join(output_dir, "plots", "hidden_state_norms.png")
+        plt.savefig(h_path)
+        plt.close()
+    else:
+        h_path = ""
+
     console.print(f"Loss plot saved to {loss_path}")
     if rew_path:
         console.print(f"Reward plot saved to {rew_path}")
     if w_path:
         console.print(f"Tool weight plot saved to {w_path}")
+    if h_path:
+        console.print(f"Hidden state plot saved to {h_path}")
 
 
 # ---------------------------------------------------------------------------
@@ -630,16 +648,19 @@ def setup_environment() -> torch.device:
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command line arguments."""
+
     parser = argparse.ArgumentParser(description="Train the NeuroResearcher model")
-    parser.add_argument("--dataset", default="ag_news", help="Dataset name")
-    parser.add_argument("--split", default="train", help="Dataset split")
-    parser.add_argument("--eval-split", default=None, help="Evaluation split")
+    parser.add_argument("--dataset", type=str, default="ag_news", help="Dataset name")
+    parser.add_argument("--split", type=str, default="train", help="Dataset split")
+    parser.add_argument("--eval-split", type=str, default=None, help="Evaluation split")
     parser.add_argument(
         "--model-path",
+        type=str,
         default="ayjays132/NeuroReasoner-1-NR-1",
         help="Pretrained model path",
     )
-    parser.add_argument("--output-dir", default="./nr_outputs")
+    parser.add_argument("--output-dir", type=str, default="./nr_outputs")
     parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument("--batch-size", type=int, default=2)
     parser.add_argument("--lr", type=float, default=5e-5)
@@ -657,7 +678,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--embed-dim", type=int, default=1024)
     parser.add_argument("--heads", type=int, default=16)
     parser.add_argument("--layers", type=int, default=24)
-    parser.add_argument("--session-id", required=True)
+    parser.add_argument("--session-id", type=str, required=True, help="Unique identifier for meta-memory")
     parser.add_argument(
         "--no-meta-memory",
         action="store_true",
@@ -763,7 +784,7 @@ def main() -> None:
             debug=args.debug,
         )
 
-    plot_metrics(losses, rewards, _ROUTER_WEIGHTS, args.output_dir)
+    plot_metrics(losses, rewards, _ROUTER_WEIGHTS, _HIDDEN_STATES, args.output_dir)
     console.print(
         f"\n[green]🎉 Training complete — all artifacts saved under {args.output_dir}"
     )
