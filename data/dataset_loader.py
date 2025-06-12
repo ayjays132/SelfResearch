@@ -8,6 +8,7 @@ from pathlib import Path
 
 from datasets import Dataset, load_dataset, load_from_disk
 from transformers import AutoTokenizer
+from SelfResearch.analysis.prompt_augmenter import PromptAugmenter
 
 
 def load_and_tokenize(
@@ -206,8 +207,6 @@ def augment_text_dataset(
     n_variations: int = 1,
 ) -> Dataset:
     """Expand a text dataset using prompt augmentation."""
-
-    from SelfResearch.analysis.prompt_augmenter import PromptAugmenter
     augmenter = PromptAugmenter(model_name)
     records: List[dict] = []
     for sample in dataset:
