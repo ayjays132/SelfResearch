@@ -450,6 +450,50 @@ def run_ppo(
 
 
 # ---------------------------------------------------------------------------
+#                           SELF-PLAY GENERATION
+# ---------------------------------------------------------------------------
+
+def run_self_play(
+    model: HFNeuroResearcherModel,
+    tokenizer: AutoTokenizer,
+    dataset: Any,
+    output_dir: str,
+    episodes: int,
+    turns: int,
+    device: torch.device,
+) -> List[str]:
+    """Generate conversation transcripts via self-play."""
+    transcripts: List[str] = []
+    for i in range(episodes):
+        sample = dataset[i % len(dataset)]
+        prompt = (
+            sample.get("prompt")
+            or sample.get("text")
+            or sample.get("question")
+            or "Discuss research."
+        )
+        dialogue = prompt
+        for _ in range(turns):
+            inputs = tokenizer(prompt, return_tensors="pt").to(device)
+            with torch.no_grad():
+                generated = model.generate(
+                    **inputs,
+                    max_new_tokens=50,
+                    do_sample=True,
+                    top_p=0.95,
+                )
+            prompt = tokenizer.decode(generated[0], skip_special_tokens=True)
+            dialogue += "\n" + prompt
+        transcripts.append(dialogue)
+    path = os.path.join(output_dir, "self_play_transcripts.txt")
+    os.makedirs(output_dir, exist_ok=True)
+    with open(path, "w") as f:
+        f.write("\n\n".join(transcripts))
+    console.print(f"Self-play transcripts saved to {path}")
+    return transcripts
+
+
+# ---------------------------------------------------------------------------
 #                         METRICS & PLOTTING
 # ---------------------------------------------------------------------------
 
@@ -531,6 +575,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ppo-batch-size", type=int, default=1)
     parser.add_argument("--ppo-clip", type=float, default=0.2)
     parser.add_argument("--ppo-kl", type=float, default=0.1)
+    parser.add_argument("--self-play-episodes", type=int, default=0)
+    parser.add_argument("--self-play-turns", type=int, default=4)
     parser.add_argument("--embed-dim", type=int, default=1024)
     parser.add_argument("--heads", type=int, default=16)
     parser.add_argument("--layers", type=int, default=24)
@@ -609,6 +655,18 @@ def main() -> None:
             args.ppo_batch_size,
             args.ppo_clip,
             args.ppo_kl,
+            device,
+        )
+
+    if args.self_play_episodes > 0:
+        console.print("[bold green]Generating self-play transcripts...")
+        run_self_play(
+            model,
+            tokenizer,
+            train_ds,
+            args.output_dir,
+            args.self_play_episodes,
+            args.self_play_turns,
             device,
         )
 
