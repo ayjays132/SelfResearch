@@ -22,6 +22,27 @@ To start the collaboration server used for peer collaboration, run the following
 python3 peer_collab/collaboration_server.py
 ```
 
+## Module Walkthrough
+The example workflow in `main.py` demonstrates how each component fits together.
+The script performs the following steps:
+
+1. **Device detection** using `torch.cuda.is_available()`.
+2. **Topic selection** with `TopicSelector`.
+3. **Source evaluation** using `SourceEvaluator` to analyze URLs and query
+   academic APIs.
+4. **Dataset loading** via `load_and_tokenize` followed by model training with
+   `TrainingConfig` and `train_model`.
+5. **Simulation lab** activities through `ExperimentSimulator` for physics and
+   biological experiments and synthetic data generation.
+6. **Rubric grading** of sample submissions using `RubricGrader`.
+7. **Authentication and ethics** checks with `AuthAndEthics` for user
+   management and ethical flagging.
+8. The **Collaboration server** in `peer_collab/` can be started separately to
+   enable shared notes and feedback.
+
+Refer to `main.py` for concrete code that ties these modules into a single
+workflow.
+
 ## Loading Different Models
 The modules rely on the HuggingFace `transformers` library. You can edit each component to load any model from the Hub by changing the model names in their initialisation calls. Most small models work well on CPU, while larger models benefit from CUDA acceleration.
 
