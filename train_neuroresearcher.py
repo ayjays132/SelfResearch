@@ -221,13 +221,16 @@ _internal_e = None
 _final_s = None
 _plan_s = None
 _plan_e = None
+_analysis_s = None
+_analysis_e = None
 
 _ROUTER_WEIGHTS: List[torch.Tensor] = []
 _HIDDEN_STATES: List[torch.Tensor] = []
 
 
 def _init_tag_tokens(tokenizer: AutoTokenizer) -> None:
-    global _reason_s, _reason_e, _internal_s, _internal_e, _final_s, _plan_s, _plan_e
+    """Initialize special token ID sequences for weight computation."""
+    global _reason_s, _reason_e, _internal_s, _internal_e, _final_s, _plan_s, _plan_e, _analysis_s, _analysis_e
     _reason_s = tokenizer.encode("<reasoning>", add_special_tokens=False)
     _reason_e = tokenizer.encode("</reasoning>", add_special_tokens=False)
     _internal_s = tokenizer.encode("<internal_thinking>", add_special_tokens=False)
@@ -235,9 +238,12 @@ def _init_tag_tokens(tokenizer: AutoTokenizer) -> None:
     _final_s = tokenizer.encode("<final_output>", add_special_tokens=False)
     _plan_s = tokenizer.encode("<plan>", add_special_tokens=False)
     _plan_e = tokenizer.encode("</plan>", add_special_tokens=False)
+    _analysis_s = tokenizer.encode("<analysis>", add_special_tokens=False)
+    _analysis_e = tokenizer.encode("</analysis>", add_special_tokens=False)
 
 
 def _apply_weights(ids: List[int]) -> List[float]:
+    """Return token weights for a sequence of IDs."""
     weights = [1.0] * len(ids)
     i = 0
     while i < len(ids):
@@ -251,6 +257,12 @@ def _apply_weights(ids: List[int]) -> List[float]:
             j = i + len(_plan_s)
             while j < len(ids) and ids[j : j + len(_plan_e)] != _plan_e:
                 weights[j] = 1.3
+                j += 1
+            i = j
+        elif ids[i : i + len(_analysis_s)] == _analysis_s:
+            j = i + len(_analysis_s)
+            while j < len(ids) and ids[j : j + len(_analysis_e)] != _analysis_e:
+                weights[j] = 1.4
                 j += 1
             i = j
         elif ids[i : i + len(_internal_s)] == _internal_s:
@@ -271,7 +283,13 @@ def _apply_weights(ids: List[int]) -> List[float]:
 def compute_loss(
     model: HFNeuroResearcherModel, inputs: Dict[str, torch.Tensor]
 ) -> torch.Tensor:
-    """Compute weighted LM loss with reasoning and planning emphasis."""
+    """Compute weighted LM loss.
+
+    Tokens inside ``<reasoning>`` blocks receive weight ``1.5``,
+    ``<plan>`` blocks weight ``1.3``, ``<analysis>`` blocks weight ``1.4``,
+    ``<internal_thinking>`` blocks weight ``1.2``, and ``<final_output>``
+    resets to ``1.0`` for all remaining tokens.
+    """
     input_ids = inputs["input_ids"] if "input_ids" in inputs else inputs["labels"]
     attention_mask = inputs.get("attention_mask")
     outputs = model(
