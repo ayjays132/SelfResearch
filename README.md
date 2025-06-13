@@ -17,6 +17,11 @@ python3 main.py
 ```
 The script showcases topic selection, source evaluation, running physics and biology simulations, grading a submission and basic authentication.
 
+For a more in-depth example that additionally analyzes datasets, evaluates perplexity and optimizes prompts, run `premium_workflow.py`:
+```bash
+python3 premium_workflow.py
+```
+
 To start the collaboration server used for peer collaboration, run the following in a separate process:
 ```bash
 python3 peer_collab/collaboration_server.py
