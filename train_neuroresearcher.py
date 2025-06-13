@@ -1,8 +1,9 @@
-"""Self-research training pipeline for the NeuroResearcher architecture.
+"""End-to-end self-research training for the NeuroResearcher architecture.
 
-This script orchestrates supervised pretraining and optional PPO fine-tuning
-using the NeuroResearcher model. It includes meta-memory, prompt optimisation
-and weighted language-model loss for reasoning tokens.
+The pipeline performs supervised LM pre-training, optional PPO fine-tuning and
+self-play generation. Meta-memory, dynamic prompt optimisation and weighted
+losses encourage chain-of-thought reasoning. Training metrics and router
+weights are plotted unless disabled via ``--no-plots``.
 """
 
 from __future__ import annotations
@@ -10,7 +11,7 @@ from __future__ import annotations
 import argparse
 import os
 import math
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 try:
     import torch
@@ -553,16 +554,25 @@ def run_self_play(
     *,
     debug: bool = False,
     optimize_prompts: bool = False,
-) -> List[str]:
+    score_reward: bool = False,
+) -> Tuple[List[str], List[float]]:
     """Generate conversation transcripts via self-play.
 
     When ``optimize_prompts`` is ``True``, the :class:`MetaPromptOptimizer`
-    refines the initial prompt of each episode.
+    refines the initial prompt of each episode. When ``score_reward`` is
+    enabled, each conversation is scored with the reward model used for PPO.
     """
     transcripts: List[str] = []
+    episode_rewards: List[float] = []
     optimizer = None
     if optimize_prompts:
         optimizer = MetaPromptOptimizer(tokenizer.name_or_path, device)
+    reward_model = None
+    if score_reward:
+        reward_model = AutoModelForSequenceClassification.from_pretrained(
+            "ayjays132/NR1-rm"
+        ).to(device)
+        reward_model.eval()
     if debug:
         episodes = min(episodes, 1)
         dataset = dataset.select(range(min(10, len(dataset))))
@@ -589,12 +599,20 @@ def run_self_play(
             prompt = tokenizer.decode(generated[0], skip_special_tokens=True)
             dialogue += "\n" + prompt
         transcripts.append(dialogue)
+        if reward_model is not None:
+            inp = tokenizer(dialogue, return_tensors="pt").to(device)
+            with torch.no_grad():
+                rm_out = reward_model(**inp)
+                reward = float(rm_out.logits.squeeze()[0])
+            episode_rewards.append(reward)
+        else:
+            episode_rewards.append(0.0)
     path = os.path.join(output_dir, "self_play_transcripts.txt")
     os.makedirs(output_dir, exist_ok=True)
     with open(path, "w") as f:
         f.write("\n\n".join(transcripts))
     console.print(f"Self-play transcripts saved to {path}")
-    return transcripts
+    return transcripts, episode_rewards
 
 
 # ---------------------------------------------------------------------------
@@ -624,9 +642,9 @@ def plot_metrics(
         r_steps = list(range(1, len(rewards) + 1))
         plt.figure()
         plt.plot(r_steps, rewards)
-        plt.xlabel("PPO step")
+        plt.xlabel("Reward step")
         plt.ylabel("Reward")
-        rew_path = os.path.join(output_dir, "plots", "ppo_rewards.png")
+        rew_path = os.path.join(output_dir, "plots", "rewards.png")
         plt.savefig(rew_path)
         plt.close()
     else:
@@ -680,6 +698,8 @@ def setup_environment() -> torch.device:
         torch.backends.cudnn.allow_tf32 = True
         if hasattr(torch.backends.cuda, "enable_flash_sdp"):
             torch.backends.cuda.enable_flash_sdp(True)
+        if hasattr(torch, "set_float32_matmul_precision"):
+            torch.set_float32_matmul_precision("high")
     return device
 
 
@@ -731,6 +751,9 @@ def parse_args() -> argparse.Namespace:
         help="Disable meta-memory storage during training",
     )
     parser.add_argument("--debug", action="store_true")
+    parser.add_argument("--max-length", type=int, default=None, help="Override max token length")
+    parser.add_argument("--no-plots", action="store_true", help="Skip metric plotting")
+    parser.add_argument("--self-play-reward", action="store_true", help="Score self-play with reward model")
     parser.add_argument(
         "--patience",
         type=int,
@@ -773,7 +796,7 @@ def main() -> None:
             tokenizer,
             args.split,
             args.eval_split,
-            tokenizer.model_max_length,
+            args.max_length or tokenizer.model_max_length,
         )
         console.print(f"Loaded {len(train_ds)} training examples")
         if eval_ds is not None:
@@ -819,7 +842,7 @@ def main() -> None:
 
     if args.self_play_episodes > 0:
         console.print("[bold green]Generating self-play transcripts...")
-        run_self_play(
+        _, sp_rewards = run_self_play(
             model,
             tokenizer,
             train_ds,
@@ -829,9 +852,12 @@ def main() -> None:
             device,
             debug=args.debug,
             optimize_prompts=args.optimize_self_play,
+            score_reward=args.self_play_reward,
         )
+        rewards.extend(sp_rewards)
 
-    plot_metrics(losses, rewards, _ROUTER_WEIGHTS, _HIDDEN_STATES, args.output_dir)
+    if not args.no_plots:
+        plot_metrics(losses, rewards, _ROUTER_WEIGHTS, _HIDDEN_STATES, args.output_dir)
     console.print(
         f"\n[green]🎉 Training complete — all artifacts saved under {args.output_dir}"
     )
