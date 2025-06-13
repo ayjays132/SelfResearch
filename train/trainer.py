@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 """
 🚀  Premium Training Utilities v2.0  🚀
 A minimal-yet-powerful wrapper around 🤗 Transformers’ `Trainer`
@@ -94,7 +95,9 @@ def train_model(
     """Launch a *train-only* run with 🤗 Trainer."""
 
     # 🌐 Detect device --------------------------------------------------
-    device = torch.device(cfg.device or ("cuda" if torch.cuda.is_available() else "cpu"))
+    device = torch.device(
+        cfg.device or ("cuda" if torch.cuda.is_available() else "cpu")
+    )
     if device.type == "cuda":
         torch.cuda.empty_cache()  # keep VRAM tidy
         print(f"🟢 Using CUDA device: {torch.cuda.get_device_name(0)}")
@@ -102,10 +105,11 @@ def train_model(
         print("🟡 CUDA not found—falling back to CPU.")
 
     # 📦 Dataset --------------------------------------------------------
-    train_ds, _ = load_dataset_splits(
+    train_ds, eval_ds = load_dataset_splits(
         cfg.dataset_name,
         cfg.model_name,
         train_split=cfg.train_split,
+        eval_split=cfg.eval_split,
         text_column=cfg.text_column,
     )
 
@@ -130,9 +134,9 @@ def train_model(
         max_grad_norm=cfg.max_grad_norm,
         fp16=cfg.fp16,
         bf16=cfg.bf16,
-        logging_steps=10,          # frequent logs 📊
+        logging_steps=10,  # frequent logs 📊
         save_steps=500,
-        save_total_limit=3,        # keep disk usage sane
+        save_total_limit=3,  # keep disk usage sane
         report_to="none",
     )
 
@@ -147,6 +151,7 @@ def train_model(
         model=model,
         args=training_args,
         train_dataset=train_ds,
+        eval_dataset=eval_ds,
         tokenizer=tokenizer,
         callbacks=callbacks,
     )
@@ -155,6 +160,13 @@ def train_model(
     trainer.train()
     trainer.save_model(cfg.output_dir)
     tokenizer.save_pretrained(cfg.output_dir)
+
+    if eval_ds is not None:
+        print("\n🔍 Running evaluation...")
+        eval_metrics = trainer.evaluate()
+        if "eval_loss" in eval_metrics:
+            ppl = math.exp(eval_metrics["eval_loss"])
+            print(f"Perplexity: {ppl:.2f}")
 
     # 📝 Metrics dump ---------------------------------------------------
     if cfg.log_file and tracker:
