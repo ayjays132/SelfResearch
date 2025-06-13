@@ -219,18 +219,22 @@ _reason_e = None
 _internal_s = None
 _internal_e = None
 _final_s = None
+_plan_s = None
+_plan_e = None
 
 _ROUTER_WEIGHTS: List[torch.Tensor] = []
 _HIDDEN_STATES: List[torch.Tensor] = []
 
 
 def _init_tag_tokens(tokenizer: AutoTokenizer) -> None:
-    global _reason_s, _reason_e, _internal_s, _internal_e, _final_s
+    global _reason_s, _reason_e, _internal_s, _internal_e, _final_s, _plan_s, _plan_e
     _reason_s = tokenizer.encode("<reasoning>", add_special_tokens=False)
     _reason_e = tokenizer.encode("</reasoning>", add_special_tokens=False)
     _internal_s = tokenizer.encode("<internal_thinking>", add_special_tokens=False)
     _internal_e = tokenizer.encode("</internal_thinking>", add_special_tokens=False)
     _final_s = tokenizer.encode("<final_output>", add_special_tokens=False)
+    _plan_s = tokenizer.encode("<plan>", add_special_tokens=False)
+    _plan_e = tokenizer.encode("</plan>", add_special_tokens=False)
 
 
 def _apply_weights(ids: List[int]) -> List[float]:
@@ -241,6 +245,12 @@ def _apply_weights(ids: List[int]) -> List[float]:
             j = i + len(_reason_s)
             while j < len(ids) and ids[j : j + len(_reason_e)] != _reason_e:
                 weights[j] = 1.5
+                j += 1
+            i = j
+        elif ids[i : i + len(_plan_s)] == _plan_s:
+            j = i + len(_plan_s)
+            while j < len(ids) and ids[j : j + len(_plan_e)] != _plan_e:
+                weights[j] = 1.3
                 j += 1
             i = j
         elif ids[i : i + len(_internal_s)] == _internal_s:
@@ -261,7 +271,7 @@ def _apply_weights(ids: List[int]) -> List[float]:
 def compute_loss(
     model: HFNeuroResearcherModel, inputs: Dict[str, torch.Tensor]
 ) -> torch.Tensor:
-    """Compute weighted language modeling loss and log model internals."""
+    """Compute weighted LM loss with reasoning and planning emphasis."""
     input_ids = inputs["input_ids"] if "input_ids" in inputs else inputs["labels"]
     attention_mask = inputs.get("attention_mask")
     outputs = model(
@@ -524,9 +534,17 @@ def run_self_play(
     device: torch.device,
     *,
     debug: bool = False,
+    optimize_prompts: bool = False,
 ) -> List[str]:
-    """Generate conversation transcripts via self-play."""
+    """Generate conversation transcripts via self-play.
+
+    When ``optimize_prompts`` is ``True``, the :class:`MetaPromptOptimizer`
+    refines the initial prompt of each episode.
+    """
     transcripts: List[str] = []
+    optimizer = None
+    if optimize_prompts:
+        optimizer = MetaPromptOptimizer(tokenizer.name_or_path, device)
     if debug:
         episodes = min(episodes, 1)
         dataset = dataset.select(range(min(10, len(dataset))))
@@ -538,6 +556,8 @@ def run_self_play(
             or sample.get("question")
             or "Discuss research."
         )
+        if optimizer is not None:
+            prompt = optimizer.optimize_prompt(prompt)
         dialogue = prompt
         for _ in range(turns):
             inputs = tokenizer(prompt, return_tensors="pt").to(device)
@@ -678,6 +698,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ppo-kl", type=float, default=0.1)
     parser.add_argument("--self-play-episodes", type=int, default=0)
     parser.add_argument("--self-play-turns", type=int, default=4)
+    parser.add_argument(
+        "--optimize-self-play",
+        action="store_true",
+        help="Use MetaPromptOptimizer during self-play",
+    )
     parser.add_argument("--embed-dim", type=int, default=1024)
     parser.add_argument("--heads", type=int, default=16)
     parser.add_argument("--layers", type=int, default=24)
@@ -785,6 +810,7 @@ def main() -> None:
             args.self_play_turns,
             device,
             debug=args.debug,
+            optimize_prompts=args.optimize_self_play,
         )
 
     plot_metrics(losses, rewards, _ROUTER_WEIGHTS, _HIDDEN_STATES, args.output_dir)
