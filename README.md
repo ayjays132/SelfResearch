@@ -87,6 +87,9 @@ ds = load_and_tokenize("ag_news", "train[:100]", "distilgpt2", cache_dir="./cach
 
 `load_and_tokenize` also supports `drop_duplicates=True` to remove repeated
 text samples before tokenization.
+If the chosen tokenizer lacks a pad token (e.g. GPT‑2 models),
+`load_and_tokenize` automatically reuses the EOS token so batching works
+out of the box.
 
 New training loops, datasets or evaluation scripts can be added under these
 modules, keeping the code organized as described in `AGENTS.md`.

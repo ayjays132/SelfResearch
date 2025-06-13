@@ -61,6 +61,9 @@ def load_and_tokenize(
             return True
         dataset = dataset.filter(_unique)
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+    if getattr(tokenizer, "pad_token", None) is None:
+        eos = getattr(tokenizer, "eos_token", "<PAD>")
+        tokenizer.pad_token = eos
 
     def tokenize(batch: Any) -> Any:
         return tokenizer(
