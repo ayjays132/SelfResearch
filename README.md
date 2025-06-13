@@ -27,6 +27,10 @@ optimizers and dataset analysis utilities, run `full_demo.py`:
 ```bash
 python3 full_demo.py
 ```
+For the most comprehensive demonstration, which additionally clusters embeddings and interacts with the collaboration server, run `ultimate_workflow.py`:
+```bash
+python3 ultimate_workflow.py
+```
 
 To start the collaboration server used for peer collaboration, run the following in a separate process:
 ```bash
