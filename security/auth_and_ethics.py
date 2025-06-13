@@ -10,11 +10,11 @@ class AuthAndEthics:
     Enhanced with more robust role management and detailed ethical flagging.
     """
 
-    def __init__(self, device: str = \'cpu\'):
+    def __init__(self, device: str = 'cpu'):
         """
         Initializes the AuthAndEthics module.
         Args:
-            device (str): The device to use for computations (\'cuda\' or \'cpu\').
+            device (str): The device to use for computations ('cuda' or 'cpu').
         """
         self.device = torch.device(device)
         self.users = {}
@@ -162,10 +162,10 @@ class AuthAndEthics:
 if __name__ == "__main__":
     # Example Usage
     if torch.cuda.is_available():
-        device = \'cuda\'
+        device = 'cuda'
         print("CUDA is available! Using GPU.")
     else:
-        device = \'cpu\'
+        device = 'cpu'
         print("CUDA not available. Using CPU.")
 
     auth_ethics = AuthAndEthics(device=device)
@@ -177,16 +177,16 @@ if __name__ == "__main__":
 
     # Authenticate users
     print("\n--- Authentication ---")
-    print(f"Admin login: {auth_ethics.authenticate_user(\"admin_user\", \"admin_pass\")}")
-    print(f"Researcher login (wrong pass): {auth_ethics.authenticate_user(\"researcher1\", \"wrong_pass\")}")
-    print(f"Student login: {auth_ethics.authenticate_user(\"student1\", \"student_pass\")}")
+    print(f"Admin login: {auth_ethics.authenticate_user("admin_user", "admin_pass")}")
+    print(f"Researcher login (wrong pass): {auth_ethics.authenticate_user("researcher1", "wrong_pass")}")
+    print(f"Student login: {auth_ethics.authenticate_user("student1", "student_pass")}")
 
     # Check permissions
     print("\n--- Permissions ---")
-    print(f"Admin can flag ethics: {auth_ethics.has_permission(\"admin_user\", \"flag_ethics\")}")
-    print(f"Researcher can submit research: {auth_ethics.has_permission(\"researcher1\", \"submit_research\")}")
-    print(f"Student can manage roles: {auth_ethics.has_permission(\"student1\", \"manage_roles\")}")
-    print(f"Admin can review ethics: {auth_ethics.has_permission(\"admin_user\", \"review_ethics\")}")
+    print(f"Admin can flag ethics: {auth_ethics.has_permission("admin_user", "flag_ethics")}")
+    print(f"Researcher can submit research: {auth_ethics.has_permission("researcher1", "submit_research")}")
+    print(f"Student can manage roles: {auth_ethics.has_permission("student1", "manage_roles")}")
+    print(f"Admin can review ethics: {auth_ethics.has_permission("admin_user", "review_ethics")}")
 
     # Flag ethical concerns
     print("\n--- Ethical Concerns ---")

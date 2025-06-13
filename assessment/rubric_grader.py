@@ -9,21 +9,21 @@ class RubricGrader:
     Uses NLP and text similarity (e.g., transformers or sentence embeddings).
     """
 
-    def __init__(self, device: str = \'cpu\'):
+    def __init__(self, device: str = 'cpu'):
         """
         Initializes the RubricGrader with a specified device.
         Args:
-            device (str): The device to use for computations (\'cuda\' or \'cpu\').
+            device (str): The device to use for computations ('cuda' or 'cpu').
         """
         self.device = torch.device(device)
         print(f"RubricGrader initialized on device: {self.device}")
 
         # Load a pre-trained model for sentence embeddings
-        self.tokenizer = AutoTokenizer.from_pretrained(\'sentence-transformers/all-MiniLM-L6-v2\')
-        self.model = AutoModel.from_pretrained(\'sentence-transformers/all-MiniLM-L6-v2\').to(self.device)
+        self.tokenizer = AutoTokenizer.from_pretrained('sentence-transformers/all-MiniLM-L6-v2')
+        self.model = AutoModel.from_pretrained('sentence-transformers/all-MiniLM-L6-v2').to(self.device)
 
         # Initialize a text generation pipeline for feedback
-        self.feedback_generator_pipeline = pipeline("text-generation", model="distilgpt2", device=0 if self.device.type == \'cuda\' else -1)
+        self.feedback_generator_pipeline = pipeline("text-generation", model="distilgpt2", device=0 if self.device.type == 'cuda' else -1)
 
     def _get_sentence_embedding(self, text: str) -> torch.Tensor:
         """
@@ -33,11 +33,11 @@ class RubricGrader:
         Returns:
             torch.Tensor: The sentence embedding.
         """
-        encoded_input = self.tokenizer(text, padding=True, truncation=True, return_tensors=\'pt\').to(self.device)
+        encoded_input = self.tokenizer(text, padding=True, truncation=True, return_tensors='pt').to(self.device)
         with torch.no_grad():
             model_output = self.model(**encoded_input)
         # Mean pooling to get sentence embedding
-        sentence_embedding = self._mean_pooling(model_output, encoded_input[\'attention_mask\'])
+        sentence_embedding = self._mean_pooling(model_output, encoded_input['attention_mask'])
         return sentence_embedding
 
     def _mean_pooling(self, model_output, attention_mask):
@@ -49,7 +49,7 @@ class RubricGrader:
         """
         Grades a submission based on a provided rubric.
         Args:
-            submission_text (str): The text of the student\'s submission.
+            submission_text (str): The text of the student's submission.
             rubric (dict): A dictionary representing the rubric, e.g.,
                            {
                                "criterion1": {"expected_content": "...", "max_score": 10},
@@ -88,7 +88,7 @@ class RubricGrader:
         """
         Generates actionable and empathetic feedback based on the score.
         Args:
-            submission_text (str): The student\'s submission text.
+            submission_text (str): The student's submission text.
             expected_content (str): The expected content for the criterion.
             score (float): The calculated score for the criterion.
             max_score (float): The maximum possible score for the criterion.
@@ -97,11 +97,11 @@ class RubricGrader:
         """
         # More nuanced prompt for feedback generation
         if score / max_score > 0.8:
-            feedback_prompt = f"The submission demonstrates strong understanding of the topic. Specifically, regarding \'{expected_content[:50]}...\', the submission was well-articulated. Provide further suggestions for excellence. Feedback:"
+            feedback_prompt = f"The submission demonstrates strong understanding of the topic. Specifically, regarding '{expected_content[:50]}...', the submission was well-articulated. Provide further suggestions for excellence. Feedback:"
         elif score / max_score > 0.5:
-            feedback_prompt = f"The submission shows a good grasp of the topic, but there are areas for improvement. For \'{expected_content[:50]}...\', consider elaborating on the following. Feedback:"
+            feedback_prompt = f"The submission shows a good grasp of the topic, but there are areas for improvement. For '{expected_content[:50]}...', consider elaborating on the following. Feedback:"
         else:
-            feedback_prompt = f"The submission needs significant improvement in understanding \'{expected_content[:50]}...\'. Please review the core concepts related to this criterion. Feedback:"
+            feedback_prompt = f"The submission needs significant improvement in understanding '{expected_content[:50]}...'. Please review the core concepts related to this criterion. Feedback:"
 
         # Generate feedback using the pre-trained model
         generated_feedback = self.feedback_generator_pipeline(
@@ -109,7 +109,7 @@ class RubricGrader:
             max_new_tokens=100,
             num_return_sequences=1,
             truncation=True
-        )[0][\'generated_text\']
+        )[0]['generated_text']
 
         # Post-process to remove the prompt itself from the generated text
         if generated_feedback.startswith(feedback_prompt):
@@ -120,16 +120,16 @@ class RubricGrader:
 if __name__ == "__main__":
     # Example Usage
     if torch.cuda.is_available():
-        device = \'cuda\'
+        device = 'cuda'
         print("CUDA is available! Using GPU.")
     else:
-        device = \'cpu\'
+        device = 'cpu'
         print("CUDA not available. Using CPU.")
 
     grader = RubricGrader(device=device)
 
     rubric_example = {
-        "Introduction Clarity": {"expected_content": "The introduction should clearly state the research question, its significance, and the paper\'s structure.", "max_score": 10},
+        "Introduction Clarity": {"expected_content": "The introduction should clearly state the research question, its significance, and the paper's structure.", "max_score": 10},
         "Methodology Detail": {"expected_content": "The methodology section must provide sufficient detail for replication, including data sources, experimental design, and analytical techniques.", "max_score": 15}
     }
 
@@ -138,17 +138,17 @@ if __name__ == "__main__":
     print("\n--- Grading Submission 1 ---")
     for criterion, result in grades1.items():
         print(f"Criterion: {criterion}")
-        print(f"  Score: {result[\'score\']:.2f}/{result[\'max_score\]}")
-        print(f"  Similarity: {result[\'similarity\']:.2f}")
-        print(f"  Feedback: {result[\'feedback\]}")
+        print(f"  Score: {result['score']:.2f}/{result['max_score']}")
+        print(f"  Similarity: {result['similarity']:.2f}")
+        print(f"  Feedback: {result['feedback']}")
 
     submission2 = "My research is about bears. I looked at some pictures. It was hard."
     grades2 = grader.grade_submission(submission2, rubric_example)
     print("\n--- Grading Submission 2 ---")
     for criterion, result in grades2.items():
         print(f"Criterion: {criterion}")
-        print(f"  Score: {result[\'score\']:.2f}/{result[\'max_score\]}")
-        print(f"  Similarity: {result[\'similarity\']:.2f}")
-        print(f"  Feedback: {result[\'feedback\]}")
+        print(f"  Score: {result['score']:.2f}/{result['max_score']}")
+        print(f"  Similarity: {result['similarity']:.2f}")
+        print(f"  Feedback: {result['feedback']}")
 
 

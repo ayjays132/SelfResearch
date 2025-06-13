@@ -8,7 +8,7 @@ from pathlib import Path
 
 from datasets import Dataset, load_dataset, load_from_disk
 from transformers import AutoTokenizer
-from SelfResearch.analysis.prompt_augmenter import PromptAugmenter
+from analysis.prompt_augmenter import PromptAugmenter
 
 
 def load_and_tokenize(
