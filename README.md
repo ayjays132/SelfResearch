@@ -22,6 +22,12 @@ For a more in-depth example that additionally analyzes datasets, evaluates perpl
 python3 premium_workflow.py
 ```
 
+For a demonstration that touches **all** modules, including advanced prompt
+optimizers and dataset analysis utilities, run `full_demo.py`:
+```bash
+python3 full_demo.py
+```
+
 To start the collaboration server used for peer collaboration, run the following in a separate process:
 ```bash
 python3 peer_collab/collaboration_server.py
