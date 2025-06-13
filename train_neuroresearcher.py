@@ -385,6 +385,8 @@ def run_supervised(
         train_ds = train_ds.select(range(min(100, len(train_ds))))
         if eval_ds is not None:
             eval_ds = eval_ds.select(range(min(100, len(eval_ds))))
+    _ROUTER_WEIGHTS.clear()
+    _HIDDEN_STATES.clear()
     collator = DataCollatorForLanguageModeling(tokenizer, mlm=False)
     training_args = TrainingArguments(
         output_dir=output_dir,
@@ -474,8 +476,9 @@ def run_ppo(
 
     if debug:
         dataset = dataset.select(range(min(32, len(dataset))))
-    for _ in range(epochs):
-        for sample in dataset:
+    for epoch in range(epochs):
+        epoch_data = dataset.shuffle(seed=epoch) if hasattr(dataset, "shuffle") else dataset
+        for sample in epoch_data:
             prompt = (
                 sample.get("prompt")
                 or sample.get("text")
@@ -528,7 +531,7 @@ def run_self_play(
         episodes = min(episodes, 1)
         dataset = dataset.select(range(min(10, len(dataset))))
     for i in track(range(episodes), description="Self-play"):
-        sample = dataset[i % len(dataset)]
+        sample = dataset.shuffle(seed=i)[0] if hasattr(dataset, "shuffle") else dataset[i % len(dataset)]
         prompt = (
             sample.get("prompt")
             or sample.get("text")
