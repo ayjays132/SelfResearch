@@ -17,10 +17,46 @@ python3 main.py
 ```
 The script showcases topic selection, source evaluation, running physics and biology simulations, grading a submission and basic authentication.
 
+For a more in-depth example that additionally analyzes datasets, evaluates perplexity and optimizes prompts, run `premium_workflow.py`:
+```bash
+python3 premium_workflow.py
+```
+
+For a demonstration that touches **all** modules, including advanced prompt
+optimizers and dataset analysis utilities, run `full_demo.py`:
+```bash
+python3 full_demo.py
+```
+For the most comprehensive demonstration, which additionally clusters embeddings and interacts with the collaboration server, run `ultimate_workflow.py`:
+```bash
+python3 ultimate_workflow.py
+```
+
 To start the collaboration server used for peer collaboration, run the following in a separate process:
 ```bash
 python3 peer_collab/collaboration_server.py
 ```
+
+## Module Walkthrough
+The example workflow in `main.py` demonstrates how each component fits together.
+The script performs the following steps:
+
+1. **Device detection** using `torch.cuda.is_available()`.
+2. **Topic selection** with `TopicSelector`.
+3. **Source evaluation** using `SourceEvaluator` to analyze URLs and query
+   academic APIs.
+4. **Dataset loading** via `load_and_tokenize` followed by model training with
+   `TrainingConfig` and `train_model`.
+5. **Simulation lab** activities through `ExperimentSimulator` for physics and
+   biological experiments and synthetic data generation.
+6. **Rubric grading** of sample submissions using `RubricGrader`.
+7. **Authentication and ethics** checks with `AuthAndEthics` for user
+   management and ethical flagging.
+8. The **Collaboration server** in `peer_collab/` can be started separately to
+   enable shared notes and feedback.
+
+Refer to `main.py` for concrete code that ties these modules into a single
+workflow.
 
 ## Loading Different Models
 The modules rely on the HuggingFace `transformers` library. You can edit each component to load any model from the Hub by changing the model names in their initialisation calls. Most small models work well on CPU, while larger models benefit from CUDA acceleration.
@@ -66,6 +102,9 @@ ds = load_and_tokenize("ag_news", "train[:100]", "distilgpt2", cache_dir="./cach
 
 `load_and_tokenize` also supports `drop_duplicates=True` to remove repeated
 text samples before tokenization.
+If the chosen tokenizer lacks a pad token (e.g. GPT‑2 models),
+`load_and_tokenize` automatically reuses the EOS token so batching works
+out of the box.
 
 New training loops, datasets or evaluation scripts can be added under these
 modules, keeping the code organized as described in `AGENTS.md`.

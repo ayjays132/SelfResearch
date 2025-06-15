@@ -1,5 +1,6 @@
 
 import torch
+from pathlib import Path
 import hashlib
 import os
 from datetime import datetime
@@ -10,11 +11,11 @@ class AuthAndEthics:
     Enhanced with more robust role management and detailed ethical flagging.
     """
 
-    def __init__(self, device: str = \'cpu\'):
+    def __init__(self, device: str = 'cpu'):
         """
         Initializes the AuthAndEthics module.
         Args:
-            device (str): The device to use for computations (\'cuda\' or \'cpu\').
+            device (str): The device to use for computations ('cuda' or 'cpu').
         """
         self.device = torch.device(device)
         self.users = {}
@@ -159,52 +160,229 @@ class AuthAndEthics:
             return [flag for flag in self.ethical_flags if flag["status"] == status]
         return self.ethical_flags
 
+# --- ANSI Escape Codes for Colors and Styles ---
+# These codes work in most modern terminals (like PowerShell, VS Code terminal, Linux terminals)
+class Colors:
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+    DIM = "\033[2m"
+    ITALIC = "\033[3m"
+    UNDERLINE = "\033[4m"
+    BLINK = "\033[5m"
+    INVERT = "\033[7m"
+    HIDDEN = "\033[8m"
+    STRIKETHROUGH = "\033[9m"
+
+    BLACK = "\033[30m"
+    RED = "\033[31m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    BLUE = "\033[34m"
+    MAGENTA = "\033[35m"
+    CYAN = "\033[36m"
+    WHITE = "\033[37m"
+
+    BRIGHT_BLACK = "\033[90m"
+    BRIGHT_RED = "\033[91m"
+    BRIGHT_GREEN = "\033[92m"
+    BRIGHT_YELLOW = "\033[93m"
+    BRIGHT_BLUE = "\033[94m"
+    BRIGHT_MAGENTA = "\033[95m"
+    BRIGHT_CYAN = "\033[96m"
+    BRIGHT_WHITE = "\033[97m"
+
+    BG_BLACK = "\033[40m"
+    BG_RED = "\033[41m"
+    BG_GREEN = "\033[42m"
+    BG_YELLOW = "\033[43m"
+    BG_BLUE = "\033[44m"
+    BG_MAGENTA = "\033[45m"
+    BG_CYAN = "\033[46m"
+    BG_WHITE = "\033[47m"
+
+    BG_BRIGHT_BLACK = "\033[100m"
+    BG_BRIGHT_RED = "\033[101m"
+    BG_BRIGHT_GREEN = "\033[102m"
+    BG_BRIGHT_YELLOW = "\033[103m"
+    BG_BRIGHT_BLUE = "\033[104m"
+    BG_BRIGHT_MAGENTA = "\033[105m"
+    BG_BRIGHT_CYAN = "\033[106m"
+    BG_BRIGHT_WHITE = "\033[107m"
+
+# Your existing AuthAndEthics class (or relevant parts for context)
+class AuthAndEthics:
+    def __init__(self, device='cpu'):
+        self.device = device
+        self.users = {}
+        self.ethical_flags = []
+        # Define permissions for each role
+        self.permissions = {
+            "admin": ["manage_roles", "flag_ethics", "review_ethics", "submit_research"],
+            "researcher": ["submit_research", "flag_ethics"],
+            "student": ["view_research"]
+        }
+        print(f"{Colors.BLUE}AuthAndEthics system initialized on {self.device}.{Colors.RESET}")
+
+
+    def register_user(self, username, password, role):
+        if username in self.users:
+            print(f"{Colors.YELLOW}User '{username}' already exists.{Colors.RESET}")
+            return False
+        if role not in self.permissions:
+            print(f"{Colors.RED}Invalid role '{role}'.{Colors.RESET}")
+            return False
+        self.users[username] = {"password": password, "role": role}
+        print(f"{Colors.GREEN}User '{username}' registered with role '{role}'.{Colors.RESET}")
+        return True
+
+    def authenticate_user(self, username, password):
+        user_info = self.users.get(username)
+        if user_info and user_info["password"] == password:
+            print(f"{Colors.GREEN}{Colors.BOLD}Authentication successful for '{username}' ({user_info['role']}).{Colors.RESET}")
+            return True
+        print(f"{Colors.RED}{Colors.BOLD}Authentication failed for '{username}'.{Colors.RESET}")
+        return False
+
+    def is_authorized(self, username: str) -> bool:
+        """
+        Checks if a user is authorized to perform a high-level action like running training.
+        This simplified version checks if the user exists and has a role other than 'guest' or 'student'.
+        You can customize this logic based on your authorization rules.
+        Args:
+            username (str): The username to check.
+        Returns:
+            bool: True if authorized, False otherwise.
+        """
+        user_data = self.users.get(username)
+        if not user_data:
+            print(f"{Colors.RED}Authorization failed: User '{username}' not found.{Colors.RESET}")
+            return False
+
+        # Example: Only 'admin' and 'researcher' roles are authorized to run training
+        authorized_roles = ["admin", "researcher"]
+        if user_data["role"] in authorized_roles:
+            print(f"{Colors.GREEN}Authorization granted for user '{username}' (Role: {user_data['role']}).{Colors.RESET}")
+            return True
+        else:
+            print(f"{Colors.YELLOW}Authorization denied for user '{username}' (Role: {user_data['role']}). Insufficient privileges.{Colors.RESET}")
+            return False
+
+    def has_permission(self, username, permission):
+        user_info = self.users.get(username)
+        if not user_info:
+            print(f"{Colors.RED}User '{username}' not found.{Colors.RESET}")
+            return False
+        
+        user_role = user_info["role"]
+        if permission in self.permissions.get(user_role, []):
+            print(f"{Colors.CYAN}User '{username}' ({user_role}) {Colors.BOLD}HAS{Colors.RESET}{Colors.CYAN} permission: {permission}.{Colors.RESET}")
+            return True
+        print(f"{Colors.YELLOW}User '{username}' ({user_role}) {Colors.RED}DOES NOT HAVE{Colors.RESET}{Colors.YELLOW} permission: {permission}.{Colors.RESET}")
+        return False
+
+    def flag_ethical_concern(self, concern_description, project_id=None, flagged_by="unknown"):
+        concern = {
+            "id": len(self.ethical_flags),
+            "description": concern_description,
+            "project_id": project_id,
+            "flagged_by": flagged_by,
+            "status": "pending" # pending, resolved, dismissed
+        }
+        self.ethical_flags.append(concern)
+        print(f"{Colors.MAGENTA}Ethical concern flagged (ID: {concern['id']}): {concern_description}{Colors.RESET}")
+        return concern['id']
+
+    def get_ethical_flags(self, status=None):
+        if status:
+            return [flag for flag in self.ethical_flags if flag["status"] == status]
+        return self.ethical_flags
+
+    def review_ethical_concern(self, concern_id, new_status, reviewed_by):
+        if not (0 <= concern_id < len(self.ethical_flags)):
+            print(f"{Colors.RED}Invalid concern ID.{Colors.RESET}")
+            return False
+        
+        concern = self.ethical_flags[concern_id]
+        if new_status not in ["pending", "resolved", "dismissed"]:
+            print(f"{Colors.YELLOW}Invalid status '{new_status}'.{Colors.RESET}")
+            return False
+
+        concern["status"] = new_status
+        concern["reviewed_by"] = reviewed_by
+        print(f"{Colors.BRIGHT_GREEN}Ethical concern {concern_id} updated to '{new_status}' by {reviewed_by}.{Colors.RESET}")
+        return True
+
+
+# --- Main Execution Block ---
 if __name__ == "__main__":
+    # Ensure correct f-string syntax in print statements
     # Example Usage
     if torch.cuda.is_available():
-        device = \'cuda\'
-        print("CUDA is available! Using GPU.")
+        device = 'cuda'
+        print(f"{Colors.GREEN}{Colors.BOLD}✨ CUDA is available! Using GPU. ✨{Colors.RESET}")
     else:
-        device = \'cpu\'
-        print("CUDA not available. Using CPU.")
+        device = 'cpu'
+        print(f"{Colors.YELLOW}{Colors.BOLD}⚠️ CUDA not available. Using CPU. ⚠️{Colors.RESET}")
 
     auth_ethics = AuthAndEthics(device=device)
 
     # Register users
+    print(f"\n{Colors.BLUE}--- User Registration ---{Colors.RESET}")
     auth_ethics.register_user("admin_user", "admin_pass", "admin")
     auth_ethics.register_user("researcher1", "research_pass", "researcher")
     auth_ethics.register_user("student1", "student_pass", "student")
+    auth_ethics.register_user("admin_user", "admin_pass", "admin") # Attempt to re-register
 
     # Authenticate users
-    print("\n--- Authentication ---")
-    print(f"Admin login: {auth_ethics.authenticate_user(\"admin_user\", \"admin_pass\")}")
-    print(f"Researcher login (wrong pass): {auth_ethics.authenticate_user(\"researcher1\", \"wrong_pass\")}")
-    print(f"Student login: {auth_ethics.authenticate_user(\"student1\", \"student_pass\")}")
+    print(f"\n{Colors.BLUE}--- User Authentication ---{Colors.RESET}")
+    print(f'Admin login: {auth_ethics.authenticate_user("admin_user", "admin_pass")}')
+    print(f'Researcher login (wrong pass): {auth_ethics.authenticate_user("researcher1", "wrong_pass")}')
+    print(f'Student login: {auth_ethics.authenticate_user("student1", "student_pass")}')
+    print(f'Non-existent user login: {auth_ethics.authenticate_user("ghost_user", "1234")}')
 
     # Check permissions
-    print("\n--- Permissions ---")
-    print(f"Admin can flag ethics: {auth_ethics.has_permission(\"admin_user\", \"flag_ethics\")}")
-    print(f"Researcher can submit research: {auth_ethics.has_permission(\"researcher1\", \"submit_research\")}")
-    print(f"Student can manage roles: {auth_ethics.has_permission(\"student1\", \"manage_roles\")}")
-    print(f"Admin can review ethics: {auth_ethics.has_permission(\"admin_user\", \"review_ethics\")}")
+    print(f"\n{Colors.BLUE}--- Permission Checks ---{Colors.RESET}")
+    print(f'Admin can flag ethics: {auth_ethics.has_permission("admin_user", "flag_ethics")}')
+    print(f'Researcher can submit research: {auth_ethics.has_permission("researcher1", "submit_research")}')
+    print(f'Student can manage roles: {auth_ethics.has_permission("student1", "manage_roles")}')
+    print(f'Admin can review ethics: {auth_ethics.has_permission("admin_user", "review_ethics")}')
+    print(f'Researcher can review ethics: {auth_ethics.has_permission("researcher1", "review_ethics")}') # Expected False
+    print(f'Student can view research: {auth_ethics.has_permission("student1", "view_research")}')
 
     # Flag ethical concerns
-    print("\n--- Ethical Concerns ---")
-    auth_ethics.flag_ethical_concern("Data collection method might violate privacy.", "proj_001", "researcher1")
-    auth_ethics.flag_ethical_concern("Potential bias in AI model training data.", flagged_by="system")
+    print(f"\n{Colors.BLUE}--- Ethical Concerns System ---{Colors.RESET}")
+    concern_id_1 = auth_ethics.flag_ethical_concern("Data collection method might violate privacy.", "proj_001", "researcher1")
+    concern_id_2 = auth_ethics.flag_ethical_concern("Potential bias in AI model training data.", flagged_by="system")
+    concern_id_3 = auth_ethics.flag_ethical_concern("AI model's outputs are racially biased.", "report_AI_bias", "admin_user")
 
     # Get ethical flags
-    print("\n--- All Ethical Flags ---")
+    print(f"\n{Colors.BLUE}--- All Ethical Flags Log ---{Colors.RESET}")
     for flag in auth_ethics.get_ethical_flags():
-        print(flag)
+        status_color = Colors.YELLOW if flag['status'] == 'pending' else (Colors.GREEN if flag['status'] == 'resolved' else Colors.RED)
+        print(f"  [{Colors.BOLD}ID:{flag['id']}{Colors.RESET}] {flag['description']} {Colors.DIM}(Project: {flag['project_id']}, Flagged by: {flag['flagged_by']}){Colors.RESET} {status_color}[{flag['status'].upper()}]{Colors.RESET}")
 
     # Review an ethical concern
-    print("\n--- Reviewing Ethical Concern ---")
-    if auth_ethics.review_ethical_concern(0, "resolved", "admin_user"):
-        print("Updated ethical flags:", auth_ethics.get_ethical_flags())
+    print(f"\n{Colors.BLUE}--- Reviewing Ethical Concern ---{Colors.RESET}")
+    if auth_ethics.review_ethical_concern(concern_id_1, "resolved", "admin_user"):
+        print(f"{Colors.GREEN}Successfully updated concern {concern_id_1}.{Colors.RESET}")
+    if auth_ethics.review_ethical_concern(999, "resolved", "admin_user"): # Invalid ID
+        pass
+    if auth_ethics.review_ethical_concern(concern_id_2, "invalid_status", "admin_user"): # Invalid Status
+        pass
 
-    print("\n--- Pending Ethical Flags ---")
-    for flag in auth_ethics.get_ethical_flags(status="pending"):
-        print(flag)
+    print(f"\n{Colors.BLUE}--- Updated Ethical Flags Log ---{Colors.RESET}")
+    for flag in auth_ethics.get_ethical_flags():
+        status_color = Colors.YELLOW if flag['status'] == 'pending' else (Colors.GREEN if flag['status'] == 'resolved' else Colors.RED)
+        print(f"  [{Colors.BOLD}ID:{flag['id']}{Colors.RESET}] {flag['description']} {Colors.DIM}(Project: {flag['project_id']}, Flagged by: {flag['flagged_by']}){Colors.RESET} {status_color}[{flag['status'].upper()}]{Colors.RESET}")
 
+    print(f"\n{Colors.BLUE}--- Pending Ethical Flags (Filtered) ---{Colors.RESET}")
+    pending_flags = auth_ethics.get_ethical_flags(status="pending")
+    if pending_flags:
+        for flag in pending_flags:
+            print(f"  [{Colors.BOLD}ID:{flag['id']}{Colors.RESET}] {Colors.YELLOW}{flag['description']}{Colors.RESET} {Colors.DIM}(Project: {flag['project_id']}, Flagged by: {flag['flagged_by']}){Colors.RESET}")
+    else:
+        print(f"{Colors.GREEN}No pending ethical flags found.{Colors.RESET}")
+
+    print(f"\n{Colors.BLUE}--- System Shutdown ---{Colors.RESET}")
+    print(f"{Colors.BRIGHT_WHITE}Thank you for using the NeuroResearcher Auth & Ethics System. Session terminated.{Colors.RESET}")
 

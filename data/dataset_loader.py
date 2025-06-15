@@ -8,6 +8,7 @@ from pathlib import Path
 
 from datasets import Dataset, load_dataset, load_from_disk
 from transformers import AutoTokenizer
+from analysis.prompt_augmenter import PromptAugmenter
 
 
 def load_and_tokenize(
@@ -60,6 +61,9 @@ def load_and_tokenize(
             return True
         dataset = dataset.filter(_unique)
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+    if getattr(tokenizer, "pad_token", None) is None:
+        eos = getattr(tokenizer, "eos_token", "<PAD>")
+        tokenizer.pad_token = eos
 
     def tokenize(batch: Any) -> Any:
         return tokenizer(
@@ -206,8 +210,6 @@ def augment_text_dataset(
     n_variations: int = 1,
 ) -> Dataset:
     """Expand a text dataset using prompt augmentation."""
-
-    from SelfResearch.analysis.prompt_augmenter import PromptAugmenter
     augmenter = PromptAugmenter(model_name)
     records: List[dict] = []
     for sample in dataset:
