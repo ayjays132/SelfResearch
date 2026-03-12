@@ -17,7 +17,23 @@ ENV/
 env.bak/
 
 # --- Large Assets & Models ---
-models/
+# Allow the models directory but ignore the heavy weight folders and files
+!models/
+models/*/
+models/*.safetensors
+models/*.bin
+models/*.pt
+models/*.pth
+models/*.model
+models/*.h5
+models/hub/
+models/xet/
+models/datasets/
+
+# Specifically allow the logic files
+!models/__init__.py
+!models/model_wrapper.py
+
 hub/
 xet/
 BART-Large-MNLI/
