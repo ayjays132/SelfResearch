@@ -186,8 +186,14 @@ class ToolManager:
                 border_style=aesthetic['color']
             ))
             
+            # Ping heartbeat before long tool execution
+            if self.os: self.os.ping_heartbeat()
+            
             tool_instance = self.all_tools[tool_name]
             result = tool_instance.execute(**kwargs)
+            
+            # Ping heartbeat after tool execution
+            if self.os: self.os.ping_heartbeat()
             
             theme_console.print(Panel(
                 f"[os.workspace.text]{str(result)[:1500]}[/os.workspace.text]" + ("..." if len(str(result)) > 1500 else ""), 

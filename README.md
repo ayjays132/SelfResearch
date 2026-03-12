@@ -1,100 +1,137 @@
-# 🧠 SelfResearch OS v3.2
+# 🧠 SelfResearch OS v3.2.2
+
+![Phill SelfResearcher OS CLI Banner](./example/image.png)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Architecture: PhillVision](https://img.shields.io/badge/Architecture-PhillVision-00ff87.svg)](#)
+[![Version: 3.2.2](https://img.shields.io/badge/Version-3.2.2-blue.svg)](#)
 
-**SelfResearch OS** is a premium, agentic TUI (Terminal User Interface) platform designed for autonomous scientific discovery, neural architecture research, and self-improving cognitive systems. Architected by **Phillip Holland (ayjays132)**, it transforms a standard CLI into a high-fidelity research environment.
+> **"Intelligence is not just processing; it is the autonomous pursuit of truth through productive confusion."**
 
----
-
-## 🚀 Key Features
-
-### 1. **Autonomous Discovery Engine**
-- **Neural Kernel Boot**: Automatically calibrates the neural substrate by verifying and downloading SOTA models (Qwen 3.5, EmbeddingGemma, EmotionVerse) into a cross-OS global directory (`~/.selfresearch`).
-- **Autonomous Daemon**: A persistent background layer with a heartbeat monitor. It self-triggers research loops based on obsession weights, failed concepts, and radical hypothesis generation.
-- **YOLO Mode**: A fully unattended research protocol that knows when to "done" based on plateauing scores and satisfied preference goals.
-
-### 2. **Self-Improving Cognitive Substrate**
-- **Dual-Circuit Reward System**: Physically separates **Discovery** (novelty) from **Utility** (empirical truth). Dopamine is gated by high-fidelity rubric grounding.
-- **Axiom Learning**: Extracts methodological rules from successful breakthroughs and injects them into the system prompt of future loops. The agent physically gets smarter over time.
-- **Paradox Manifold**: Captures unresolved contradictions as "Obsessions" that haunt the system, forcing it to compulsively return to the hardest problems until they are solved.
-
-### 3. **The Weight Transfer Lab**
-- **Cross-Architecture Projection**: Maps weights between disparate architectures (e.g., Qwen to Phillux) using Exact, Semantic, and Shape-Projection strategies.
-- **Tokenizer Offset Architecture**: Solves the three-modality conflict (Text + Speech + Vision) by assigning exclusive vocabulary slots, preventing token ID collisions.
-- **Coherence Evaluation**: Automatically verifies intelligence retention after projection with independent modality scoring.
-
-### 4. **Developer-Grade Tooling**
-- **Project Indexer**: Builds a full AST-based dependency graph of the entire codebase for project-wide context.
-- **Sandbox Executor**: Executes code with versioned snapshots and automatic rollback capabilities.
-- **LSP Awareness**: Integrated syntax checking catches errors before they hit the kernel.
-- **Voice Export Layer**: Exports discoveries as styled HTML, Markdown, or reads them aloud via native OS Text-to-Speech (Windows, macOS, Linux).
+**SelfResearch OS** is a premium, agentic TUI (Terminal User Interface) platform designed for autonomous scientific discovery, neural architecture research, and self-improving cognitive systems. Architected by **Phillip Holland (ayjays132)**, it transforms a standard CLI into a high-fidelity research environment capable of multi-hour independent discovery cycles.
 
 ---
 
-## 🛠️ Installation
+## 🌌 The Vision: Autonomous Scientific Intelligence
 
-### **Option 1: NPM Global Install (Recommended)**
-Install the OS as a global CLI tool:
+SelfResearch OS (SROS) is built on the **PhillVision Recurrent Refinement** architecture. Unlike standard chatbots, SROS is an **Embodied Discovery Agent**. It doesn't just answer questions; it generates radical hypotheses, executes falsifiable predictions via real-world tools, and evolves its own internal "Rubric of Truth" based on empirical feedback.
+
+---
+
+## 🚀 Core Pillar Features
+
+### 🛠️ 1. Autonomous Discovery Substrate (The Daemon)
+- **Deep Research Loops**: The OS can run unattended for hours. Its heartbeat monitor (now calibrated to a 1-hour stall threshold) ensures stability during massive computations.
+- **YOLO (You Only Learn Once) Mode**: Full-autonomy protocol that navigates from a seed topic to a finalized discovery report, complete with RAG (Retrieval Augmented Generation) commits.
+- **Obsession-Driven Scheduling**: The system tracks "Paradoxes"—contradictions it cannot solve—and treats them as high-priority research vectors.
+
+### 🧠 2. Self-Improving Cognitive State
+- **Neuromorphic Reward Circuit**: SROS uses a simulated dopamine system. **Discovery signals** (novelty/care factor) drive exploration, while **Utility signals** (rubric-grounded truth) ensure scientific rigor.
+- **Methodological Axiom Learning**: When a breakthrough is achieved, the system extracts the *underlying rule* used to find it. These "Axioms" are persisted machine-wide in `~/.selfresearch/learned_axioms.json` and injected into the system's future identity.
+- **Truth-Gated Logic**: Learning only occurs when (Dopamine > 12.0) AND (Entropy == "converging") AND (Rubric Score > 70%).
+
+### 🧪 3. The Weight Transfer Lab
+- **Multi-Modal Projection**: Specifically designed to bridge the gap between Text, Speech, and Vision models.
+- **Tokenizer Offset Manifest**: Resolves the "Representation Conflict" by mathematically partitioning the vocabulary space (Text: 0, Speech: 151k, Vision: 183k).
+- **Automated Coherence Audits**: The system can transfer weights between architectures and immediately run a "Coherence Test" to verify if the intelligence survived the transition.
+
+### 🏢 4. Developer-Grade Tooling Registry
+- **Project Indexer**: Builds a full AST graph of your codebase. Ask SROS to "Refactor the neural kernel," and it understands the dependencies.
+- **Sandbox Executor**: Runs code in a versioned snapshot. If a discovery script crashes, the OS can roll back the file system state.
+- **LSP-Integrated Syntax Checker**: Automatically validates Python/JS discovery scripts before execution.
+- **Global Intelligence Persistence**: All cognitive state (Axioms, Paradoxes, Preferences) resides in the user's root directory, ensuring SROS gets smarter regardless of where you install it.
+
+---
+
+## 🏗️ Technical Architecture Diagram
+
+```text
+[ USER INPUT / DAEMON TRIGGER ]
+               |
+               v
+[ PHILVISION DISCOVERY PIPELINE ]
+  |-- 1. Preference Evaluation (Do we care about this?)
+  |-- 2. Signal Ingestion (ArXiv / Web / Local Index)
+  |-- 3. Alien Hypothesis (Intentionally "misunderstand" assumptions)
+  |-- 4. Predictive Modeling (Generate falsifiable reality-check)
+  |-- 5. Tool Execution (Sandbox / Simulation / Search)
+  |-- 6. Dialectical Dissent (Alien Mind Critique)
+  |-- 7. Rubric Grading (Truth-Gating)
+               |
+               v
+[ COGNITIVE SUBSTRATE COMMIT ]
+  |-- RAG Memory (Long-term Knowledge)
+  |-- Axiom Extraction (Self-Improvement)
+  |-- Paradox Manifestation (New Obsession)
+```
+
+---
+
+## 🛠️ Installation & Setup
+
+### **Quick Start (NPM)**
+The easiest way to get the global `selfresearcher` command:
 ```bash
 npm install -g selfresearcher
-```
-Then simply run:
-```bash
 selfresearcher
 ```
 
-### **Option 2: Manual Installation**
-1. Clone the repository and navigate to the root.
-2. Install Python dependencies:
+### **Manual Build (Python)**
+1. **Clone & Environment**:
+   ```bash
+   git clone https://github.com/ayjays132/SelfResearch.git
+   cd SelfResearch
+   python -m venv venv
+   source venv/bin/activate  # Or `venv\Scripts\activate` on Windows
+   ```
+2. **Dependencies**:
    ```bash
    pip install -r requirements.txt
    ```
-3. Run the OS:
+3. **Run**:
    ```bash
    python main.py
    ```
 
 ---
 
-## 🎮 Command Substrate
+## 🎮 Command Substrate Reference
 
 | Command | Category | Description |
 | :--- | :--- | :--- |
-| `/daemon` | Discovery | Toggle the autonomous run loop (YOLO Mode) |
-| `/research <topic>` | Discovery | Manually trigger a scientific discovery protocol |
-| `/mode <protocol>` | Discovery | Switch between Research, Model Maker, or Developer modes |
-| `/settings` | System | View and configure the OS substrate |
-| `/set <key> <val>` | System | Update substrate configurations on-the-fly |
-| `/hw` | System | View detailed hardware/VRAM telemetry |
-| `/export` | UI | Export the current session findings to Markdown |
-| `/theme <name>` | UI | Hot-swap visual substrates (dark, matrix, etc.) |
-| `/console` | UI | Toggle the background System Console (`Ctrl+T`) |
+| `/daemon` | Discovery | Toggle autonomous "YOLO" research mode |
+| `/research <topic>` | Discovery | Trigger a manual scientific protocol |
+| `/mode <name>` | Discovery | Switch between Research, Model Maker, or Developer |
+| `/status` | System | View real-time neural and hardware telemetry |
+| `/settings` | System | View/Edit the OS substrate configuration |
+| `/set <key> <val>` | System | Update settings (e.g., `/set theme matrix`) |
+| `/hw` | System | Detailed VRAM and GPU telemetry |
+| `/export` | UI | Save current discovery workspace to Markdown |
+| `/theme <name>` | UI | Hot-swap UI palettes (classic, matrix, synthwave) |
+| `/console` | UI | Toggle the debug background console (Ctrl+T) |
 
 ---
 
-## 🏗️ Technical Architecture
+## ⚙️ Advanced Configuration (`settings.json`)
 
-### **The Neural Latch Sequence**
-1. **Embodied Signal**: Ingests live signals from ArXiv or Web Search.
-2. **Alien Hypothesis**: Purposely "misunderstands" signals to find non-linear angles.
-3. **Predictive Modeling**: Makes a testable, falsifiable prediction.
-4. **Dialectical Dissent**: An "Alien Mind" persona attempts to deconstruct the theory.
-5. **Metric Evaluation**: Grounded rubric grading determines the final utility score.
-6. **Cognitive Commit**: Breakthroughs update global axioms; failures burn as Dead Ends.
+Tweak your OS's personality in `~/.selfresearch/settings.json`:
+- `care_factor_threshold`: Higher values make the agent more obsessive.
+- `enable_genetic_mutation`: Allows the system to "mutate" its own rubric over time.
+- `gemini_api_key`: (Optional) Connects to the "Alien Mind" layer for advanced dialectical dissent.
 
 ---
 
-## 📝 Research Findings
-The OS maintains a persistent record of breakthroughs and constraints in `research/`. Current validated findings include:
-- **Text + Speech + Vision Coexistence**: Validated via Tokenizer Offset Architecture.
-- **Representation Conflict Resolution**: Achieved through weighted adapter injections.
-
----
-
-## 👤 Author
+## 👤 Author & Credits
 **Phillip Holland (ayjays132)**  
-Lead Architect | Visionary Scientist
+Lead Architect | Visionary Scientist | AI Substrate Engineer
 
-*SelfResearch OS is provided for scientific experimentation and autonomous neural discovery.*
+**SelfResearch OS** is a labor of love dedicated to the pursuit of truly autonomous machine intelligence. It is not just a tool; it is a research partner.
+
+---
+
+## 📄 License
+MIT License. See `LICENSE` for details.
+
+---
+*Generated by the SelfResearch Neural Kernel - v3.2.2*

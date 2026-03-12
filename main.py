@@ -131,7 +131,7 @@ def make_header() -> Panel:
         (r" ___/ / /___ / /___ / __/  / _, _/ /___  ___/ / /___ / ___ | |  _ < /    / __  /  / /_/ / ___/ /  ", "os.header_accent"), "\n",
         (r"/____/_____//_____//_/    /_/ |_/_____/ /____/_____//_/  |_|/_/ |_|\____/_/ |_|   \____/ /____/   ", "os.header"), "\n",
         ("\n", ""),
-        (" SelfResearch OS v3.2 | ", "italic dim white"),
+        (" SelfResearch OS v3.2.2 | ", "italic dim white"),
         ("Architected by Phillip Holland (ayjays132)", "os.branding"),
         ("\n", "")
     )
@@ -325,7 +325,17 @@ class SelfResearchOS:
     @current_status.setter
     def current_status(self, value):
         self._current_status = value
+        self.ping_heartbeat()
+
+    def ping_heartbeat(self):
+        """Pings the daemon to signal life."""
         self.last_activity_time = time.time()
+
+    def append_output(self, item):
+        """Appends to buffer and resets offset for autoscroll."""
+        self.output_buffer.append(item)
+        self.buffer_offset = 0
+        self.ping_heartbeat()
 
     def _init_commands(self):
         # 1. System Category (No boot required)
@@ -372,13 +382,13 @@ class SelfResearchOS:
             ("Substrate:    ", "bold white"), ("PyTorch / HuggingFace / FAISS", "os.secondary"), ("\n", ""),
             ("\n[italic dim]Dedicated to the pursuit of autonomous scientific discovery.[/italic dim]\n", "")
         )
-        self.output_buffer.append(Panel(Align.center(credits_text), border_style="bold cyan", padding=(1, 2)))
+        self.append_output(Panel(Align.center(credits_text), border_style="bold cyan", padding=(1, 2)))
 
     def handle_history(self, args=None):
         if not self.rag: return
         data = self.rag.memory_store
         if not data:
-            self.output_buffer.append("[os.status.info]Knowledge base is currently empty.[/os.status.info]")
+            self.append_output("[os.status.info]Knowledge base is currently empty.[/os.status.info]")
             return
         
         table = Table(title="Knowledge Base Index", expand=True)
@@ -386,21 +396,21 @@ class SelfResearchOS:
         table.add_column("Research ID", style="cyan")
         for i, mem in enumerate(data):
             table.add_row(str(i+1), mem['id'])
-        self.output_buffer.append(table)
+        self.append_output(table)
 
     def handle_rag_search(self, query=None):
         if not query:
-            self.output_buffer.append("[os.status.error]Usage: /search <query>[/os.status.error]")
+            self.append_output("[os.status.error]Usage: /search <query>[/os.status.error]")
             return
         if not self.rag: return
         
         results = self.rag.query(query, top_k=3)
         if not results:
-            self.output_buffer.append(f"[os.status.warning]No relevant context found for '{query}'.[/os.status.warning]")
+            self.append_output(f"[os.status.warning]No relevant context found for '{query}'.[/os.status.warning]")
             return
             
         for res in results:
-            self.output_buffer.append(Panel(
+            self.append_output(Panel(
                 res['text'][:1500] + ("..." if len(res['text']) > 1500 else ""),
                 title=f"[bold cyan]🔍 MATCH: {res['id']}[/bold cyan]",
                 border_style="cyan",
@@ -410,10 +420,10 @@ class SelfResearchOS:
     def toggle_daemon(self, args=None):
         if self.daemon_running:
             self.daemon_running = False
-            self.output_buffer.append("[os.status.warning]🛑 Autonomous Daemon Stopped.[/os.status.warning]")
+            self.append_output("[os.status.warning]🛑 Autonomous Daemon Stopped.[/os.status.warning]")
         else:
             self.daemon_running = True
-            self.output_buffer.append("[bold green]🚀 AUTONOMOUS DAEMON INITIATED. Self-Triggering Active.[/bold green]")
+            self.append_output("[bold green]🚀 AUTONOMOUS DAEMON INITIATED. Self-Triggering Active.[/bold green]")
             threading.Thread(target=self._daemon_loop, daemon=True).start()
 
     def _daemon_loop(self):
@@ -426,16 +436,17 @@ class SelfResearchOS:
                     continue
 
                 if self.is_agent_running:
-                    # 1. Heartbeat Monitor (60s ping)
-                    if time.time() - self.last_activity_time > 120: 
-                        self.output_buffer.append("[bold red]⚠️ DAEMON: Research loop stalled or crashed silently. Restarting...[/bold red]")
+                    # 1. Heartbeat Monitor (3600s stall threshold for deep research)
+                    if time.time() - self.last_activity_time > 3600: 
+                        self.append_output("[bold red]⚠️ DAEMON: Research loop stalled or crashed silently. Restarting...[/bold red]")
                         logging.warning("Daemon detected stalled thread. Force resetting agent state.")
                         self.is_agent_running = False
                     continue
 
+
                 # 3. Completion Awareness
                 if self._check_completion():
-                    self.output_buffer.append("[bold cyan]✨ DAEMON: All completion criteria met. Terminating session.[/bold cyan]")
+                    self.append_output("[bold cyan]✨ DAEMON: All completion criteria met. Terminating session.[/bold cyan]")
                     self.handle_export_workspace()
                     
                     # Try audio export summary
@@ -450,12 +461,12 @@ class SelfResearchOS:
 
                 # 2. Self-Triggering Research Scheduler
                 next_topic = self._determine_next_topic()
-                self.output_buffer.append(f"[bold magenta]🤖 DAEMON: Auto-Triggering Next Protocol -> {next_topic}[/bold magenta]")
+                self.append_output(f"[bold magenta]🤖 DAEMON: Auto-Triggering Next Protocol -> {next_topic}[/bold magenta]")
                 self.is_agent_running = True # Set immediately to prevent re-triggering
                 threading.Thread(target=self._run_logic, args=(next_topic,), daemon=True).start()
 
         except Exception as e:
-            self.output_buffer.append(f"[os.status.error]DAEMON CRITICAL ERROR: {e}[/os.status.error]")
+            self.append_output(f"[os.status.error]DAEMON CRITICAL ERROR: {e}[/os.status.error]")
             logging.error(f"Daemon loop crash: {e}")
             self.daemon_running = False
 
@@ -520,13 +531,13 @@ class SelfResearchOS:
     # --- ADVANCED COMMAND HANDLERS ---
     def handle_research_direct(self, topic=None):
         if not topic:
-            self.output_buffer.append("[os.status.error]Usage: /research <topic>[/os.status.error]")
+            self.append_output("[os.status.error]Usage: /research <topic>[/os.status.error]")
             return
         threading.Thread(target=self._run_logic, args=(topic,), daemon=True).start()
 
     def handle_clear_workspace(self, args=None):
         self.output_buffer.clear()
-        self.output_buffer.append("[os.status.success]Discovery Workspace flushed.[/os.status.success]")
+        self.append_output("[os.status.success]Discovery Workspace flushed.[/os.status.success]")
 
     def handle_export_workspace(self, args=None):
         filename = f"export_{int(time.time())}.md"
@@ -534,15 +545,15 @@ class SelfResearchOS:
         for item in self.output_buffer:
             content += f"{str(item)}\n\n"
         with open(filename, "w", encoding="utf-8") as f: f.write(content)
-        self.output_buffer.append(f"[os.status.success]Session exported to {filename}[/os.status.success]")
+        self.append_output(f"[os.status.success]Session exported to {filename}[/os.status.success]")
 
     def handle_theme_switch(self, theme=None):
         if not theme:
-            self.output_buffer.append(f"[os.status.info]Available: {', '.join(ThemeEngine.PALETTES.keys())}[/os.status.info]")
+            self.append_output(f"[os.status.info]Available: {', '.join(ThemeEngine.PALETTES.keys())}[/os.status.info]")
             return
         theme = theme.strip().lower()
         if theme not in ThemeEngine.PALETTES:
-            self.output_buffer.append(f"[os.status.error]Unknown theme '{theme}'.[/os.status.error]")
+            self.append_output(f"[os.status.error]Unknown theme '{theme}'.[/os.status.error]")
             return
             
         self.settings["theme"] = theme
@@ -555,7 +566,7 @@ class SelfResearchOS:
         global render_console
         render_console = Console(force_terminal=True, width=render_console.width if render_console else 120, theme=ThemeEngine.get_theme())
         
-        self.output_buffer.append(f"[os.status.success]Visual substrate live-recalibrated to {theme.upper()}.[/os.status.success]")
+        self.append_output(f"[os.status.success]Visual substrate live-recalibrated to {theme.upper()}.[/os.status.success]")
 
     def _setup_keybindings(self):
         @self.kb.add('c-t')
@@ -760,7 +771,7 @@ class SelfResearchOS:
 
     def _run_logic(self, user_input: str):
         if not self.boot_complete:
-            self.output_buffer.append("[os.status.error]Neural Substrate not yet calibrated. Input deferred.[/os.status.error]")
+            self.append_output("[os.status.error]Neural Substrate not yet calibrated. Input deferred.[/os.status.error]")
             return
 
         self.is_agent_running = True
@@ -784,7 +795,7 @@ class SelfResearchOS:
                 if self.current_mode == "Research": self.run_research_pipeline(user_input)
                 else: self.run_general_agent_loop(user_input)
         except Exception as e:
-            self.output_buffer.append(f"[os.status.error]Logic Error: {e}[/os.status.error]")
+            self.append_output(f"[os.status.error]Logic Error: {e}[/os.status.error]")
         finally:
             self.is_agent_running, self.current_status = False, "Idle"
 
@@ -840,7 +851,7 @@ class SelfResearchOS:
                 
                 # QOL: Welcome Message
                 welcome_text = (
-                    "# Welcome to SelfResearch OS v3.2\n"
+                    "# Welcome to SelfResearch OS v3.2.2\n"
                     "Your neural kernel is calibrated and ready for discovery.\n\n"
                     "**Quick Start:**\n"
                     "- Type a topic to start manual research.\n"
@@ -849,10 +860,10 @@ class SelfResearchOS:
                     "- Use `Ctrl+T` to toggle the debug console.\n"
                     "- Use `Ctrl+L` to clear the workspace.\n"
                 )
-                self.output_buffer.append(Panel(Markdown(welcome_text), title="[bold green]INITIALIZATION SUCCESS[/bold green]", border_style="green", padding=(1, 2)))
-                self.output_buffer.append("[os.status.success]OS Substrate fully calibrated. Awaiting Scientific Protocol.[/os.status.success]")
+                self.append_output(Panel(Markdown(welcome_text), title="[bold green]INITIALIZATION SUCCESS[/bold green]", border_style="green", padding=(1, 2)))
+                self.append_output("[os.status.success]OS Substrate fully calibrated. Awaiting Scientific Protocol.[/os.status.success]")
         except Exception as e:
-            self.output_buffer.append(f"[os.status.error]BOOT CRITICAL FAILURE: {e}[/os.status.error]")
+            self.append_output(f"[os.status.error]BOOT CRITICAL FAILURE: {e}[/os.status.error]")
             logging.error(f"Boot crash: {e}")
 
     def _logic_sync(self, user_input: str):
@@ -865,7 +876,7 @@ class SelfResearchOS:
             else:
                 self.run_general_agent_loop(user_input)
         except Exception as e:
-            self.output_buffer.append(f"[os.status.error]Logic Error: {e}[/os.status.error]")
+            self.append_output(f"[os.status.error]Logic Error: {e}[/os.status.error]")
         finally:
             self.is_agent_running = False
             self.current_status = "Idle"
@@ -893,7 +904,7 @@ class SelfResearchOS:
         obsessions = [p for p, w in paradoxes.items() if w >= 3.0]
         if obsessions:
             base_topic = max(obsessions, key=lambda k: paradoxes[k])
-            self.output_buffer.append(f"[bold magenta]OBSESSION OVERRIDE:[/bold magenta] System is haunted by paradox: {base_topic[:80]}...")
+            self.append_output(f"[bold magenta]OBSESSION OVERRIDE:[/bold magenta] System is haunted by paradox: {base_topic[:80]}...")
             paradoxes[base_topic] += 0.5 # Deepen obsession temporarily
             with open(self.paradox_path, "w") as f: json.dump(paradoxes, f, indent=2)
             
@@ -912,7 +923,7 @@ class SelfResearchOS:
         except:
             care_factor = 1.0
             
-        self.output_buffer.append(f"[os.status.info]Intrinsic Motivation (Care Factor):[/os.status.info] {care_factor:.2f}")
+        self.append_output(f"[os.status.info]Intrinsic Motivation (Care Factor):[/os.status.info] {care_factor:.2f}")
         
         if care_factor > 1.8:
             pref_prompt = f"We deeply cared about '{base_topic}'. Formulate a 1-3 word abstract goal to add to our preference hierarchy. Return ONLY the words."
@@ -920,7 +931,7 @@ class SelfResearchOS:
             if new_pref and len(new_pref) < 40:
                 preferences[new_pref] = 1.0
                 with open(self.pref_path, "w") as f: json.dump(preferences, f, indent=2)
-                self.output_buffer.append(f"[bold cyan]Preference Evolved:[/bold cyan] {new_pref}")
+                self.append_output(f"[bold cyan]Preference Evolved:[/bold cyan] {new_pref}")
 
         max_effort_tokens = int(1500 * max(0.5, min(2.5, care_factor)))
 
@@ -928,7 +939,7 @@ class SelfResearchOS:
         self.current_status = "Embodied Signal Acquisition"
         surprise_query = f"latest groundbreaking discovery or anomaly in {base_topic} 2025 2026"
         live_signal = self.tool_manager.all_tools["web_search"].execute(surprise_query)
-        self.output_buffer.append(f"[os.status.info]LIVE SIGNAL INGESTED:[/os.status.info] {str(live_signal)[:100]}...")
+        self.append_output(f"[os.status.info]LIVE SIGNAL INGESTED:[/os.status.info] {str(live_signal)[:100]}...")
 
         # --- FEATURE 2: Productive Misunderstanding (Alien Novelty) ---
         self.current_status = "Alien Hypothesis Generation"
@@ -939,7 +950,7 @@ class SelfResearchOS:
             "Output ONLY the radical hypothesis title."
         )
         refined_topic = self.agent.generate(alien_prompt, max_new_tokens=150, temperature=0.98).strip()
-        self.output_buffer.append(f"[os.branding]Alien Hypothesis:[/os.branding] {refined_topic}")
+        self.append_output(f"[os.branding]Alien Hypothesis:[/os.branding] {refined_topic}")
         
         self.current_status = "Retrieving Knowledge Graph"
         past_context = ""
@@ -956,7 +967,7 @@ class SelfResearchOS:
         self.current_status = "Meta-Strategy Evaluation"
         meta_prompt = f"Hypothesis: {refined_topic}\n{past_context}\n\nBased on the history, should we: [GO DEEP], [PIVOT], [ABANDON], or [STAY CONFUSED]? Answer with just one word."
         strategy = self.agent.generate(meta_prompt, max_new_tokens=50).strip().upper()
-        self.output_buffer.append(f"[os.status.warning]Meta-Strategy Layer:[/os.status.warning] {strategy}")
+        self.append_output(f"[os.status.warning]Meta-Strategy Layer:[/os.status.warning] {strategy}")
         
         if "STAY CONFUSED" in strategy:
             self.current_status = "Paradox Manifestation"
@@ -965,18 +976,18 @@ class SelfResearchOS:
             if isinstance(paradoxes, dict): paradoxes[new_paradox] = 1.0
             else: paradoxes = {new_paradox: 1.0}
             with open(self.paradox_path, "w") as f: json.dump(paradoxes, f, indent=2)
-            self.output_buffer.append(f"[bold magenta]Paradox Manifested:[/bold magenta] {new_paradox}")
+            self.append_output(f"[bold magenta]Paradox Manifested:[/bold magenta] {new_paradox}")
             return
 
         if "ABANDON" in strategy:
-            self.output_buffer.append("[bold red]Research vector abandoned.[/bold red]")
+            self.append_output("[bold red]Research vector abandoned.[/bold red]")
             return
                 
         # --- FEATURE 1: External Reality Check (Testable Prediction) ---
         self.current_status = "Predictive Modeling"
         prediction_prompt = f"Based on hypothesis '{refined_topic}', make one highly specific, numeric or binary prediction about a real-world dataset or simulation result. Return ONLY the prediction."
         prediction = self.agent.generate(prediction_prompt, max_new_tokens=100).strip()
-        self.output_buffer.append(f"[os.status.info]Predictive Latch:[/os.status.info] {prediction}")
+        self.append_output(f"[os.status.info]Predictive Latch:[/os.status.info] {prediction}")
 
         axioms = []
         if os.path.exists(self.axiom_path):
@@ -1002,7 +1013,7 @@ class SelfResearchOS:
         # --- FEATURE: WEIGHT TRANSFER LAB (Automated Integration) ---
         if any(kw in refined_topic.lower() for kw in ["model architecture", "weight transfer", "projection"]):
             self.current_status = "Weight Transfer Projection"
-            self.output_buffer.append("[os.status.info]Weight Transfer Lab: Initiating cross-architecture projection...[/os.status.info]")
+            self.append_output("[os.status.info]Weight Transfer Lab: Initiating cross-architecture projection...[/os.status.info]")
             
             # 1. Attempt Transfer (Simulated Source for Research Loop)
             source_paths = ["models/Qwen3.5-0.8B/model.safetensors"]
@@ -1017,24 +1028,24 @@ class SelfResearchOS:
             eval_res = json.loads(eval_res_str)
             coherence_score = eval_res.get("coherence_score", 0)
             
-            self.output_buffer.append(f"[bold cyan]Coherence Score:[/bold cyan] {coherence_score}/100")
+            self.append_output(f"[bold cyan]Coherence Score:[/bold cyan] {coherence_score}/100")
             agent_response += f"\n\n### WEIGHT TRANSFER LAB RESULTS:\n{eval_res_str}"
             
             # 3. Axiom Extraction (Special Case)
             if coherence_score > 70:
-                self.output_buffer.append(f"[os.status.success]Weight Projection Validated (>70%). Learning methodology...[/os.status.success]")
+                self.append_output(f"[os.status.success]Weight Projection Validated (>70%). Learning methodology...[/os.status.success]")
                 axiom_prompt = f"Based on this successful weight transfer (Score: {coherence_score}), extract one methodological rule for projecting {modality} weights. Return ONLY the rule."
                 lab_axiom = self.agent.generate(axiom_prompt, max_new_tokens=100).strip()
                 if lab_axiom:
                     axioms.append(lab_axiom)
                     with open(self.axiom_path, "w") as f: json.dump(axioms, f, indent=2)
-                    self.output_buffer.append(f"[bold magenta]Lab Axiom Learned:[/bold magenta] {lab_axiom[:50]}...")
+                    self.append_output(f"[bold magenta]Lab Axiom Learned:[/bold magenta] {lab_axiom[:50]}...")
 
         # Reality Check (Falsification via Search or Simulation)
         self.current_status = "Embodied Reality Check"
         reality_signal = ""
         if any(kw in refined_topic.lower() for kw in ["physics", "gravity", "population", "biological"]):
-            self.output_buffer.append("[os.status.info]Triggering Simulation Lab for reality check...[/os.status.info]")
+            self.append_output("[os.status.info]Triggering Simulation Lab for reality check...[/os.status.info]")
             sim_prompt = f"Generate a valid JSON tool call for 'simulation_lab' to test the prediction: {prediction}. Output ONLY the tool call."
             sim_call = self.agent.generate(sim_prompt, max_new_tokens=300)
             called, reality_signal = self.tool_manager.parse_and_execute(sim_call)
@@ -1043,13 +1054,14 @@ class SelfResearchOS:
             falsify_query = f"evidence against {prediction} or {refined_topic}"
             reality_signal = self.tool_manager.all_tools["web_search"].execute(falsify_query)
             
-        self.output_buffer.append(f"[os.status.success]Reality Signal Received.[/os.status.success]")
+        self.append_output(f"[os.status.success]Reality Signal Received.[/os.status.success]")
         agent_response += f"\n\n### EXTERNAL REALITY CHECK (Embodied Signal):\n**Prediction:** {prediction}\n**Reality Signal:** {reality_signal}"
 
         self.current_status = "Causal Inference Analysis"
         causal_prompt = f"Analyze the following synthesis and strictly separate causality from correlation. Identify at least one instance where 'A and B appear together' might be falsely interpreted as 'A causes B'.\nSynthesis: {agent_response[-800:]}"
         causal_analysis = self.agent.generate(causal_prompt, max_new_tokens=300)
         agent_response += f"\n\n### Causal Inference Pass:\n{causal_analysis}"
+        self.ping_heartbeat()
         
         # --- FEATURE 5 (upgraded): Theory of Other Minds (Alien Peer Review) ---
         self.current_status = "Dialectical Dissent (Alien Mind)"
@@ -1061,11 +1073,12 @@ class SelfResearchOS:
             except: pass
         adv_prompt = f"Tear down this human research: {agent_response[-1000:]}"
         adv_critique = alien_mind.generate(adv_prompt, max_new_tokens=400, system_prompt=dissent_sys_prompt, temperature=0.99)
-        self.output_buffer.append(f"[os.status.warning]Alien Dissent Generated.[/os.status.warning]")
+        self.append_output(f"[os.status.warning]Alien Dissent Generated.[/os.status.warning]")
         rebuttal_prompt = f"An alien skeptic has attacked your research: '{adv_critique}'. Defend it with evidence or pivot the hypothesis.\nYour Research: {agent_response[-1000:]}"
         rebuttal = self.agent.generate(rebuttal_prompt, max_new_tokens=400)
         agent_response += f"\n\n### Theory of Other Minds (Alien Dissent):\n**Alien Deconstruction:** {adv_critique}\n**Synthesis/Rebuttal:** {rebuttal}"
-        self.output_buffer.append(f"[os.status.success]Discovery & Dialectic Phase Complete.[/os.status.success]")
+        self.append_output(f"[os.status.success]Discovery & Dialectic Phase Complete.[/os.status.success]")
+        self.ping_heartbeat()
 
         self.current_status = "Bio-Orchestration"
         orchestrator = get_bio_orchestrator(self.agent.model_name)
@@ -1106,7 +1119,7 @@ class SelfResearchOS:
             critique = self.agent.generate(skeptical_prompt, max_new_tokens=200)
             score = score * 0.85
             summary['score'] = score
-            self.output_buffer.append(f"[os.status.warning]Skeptical Grounding Applied.[/os.status.warning]")
+            self.append_output(f"[os.status.warning]Skeptical Grounding Applied.[/os.status.warning]")
         
         if score < (max_score * 0.7):
             self.consecutive_convergence_failures += 1
@@ -1132,7 +1145,7 @@ class SelfResearchOS:
             if new_axiom:
                 axioms.append(new_axiom)
                 with open(self.axiom_path, "w") as f: json.dump(axioms, f, indent=2)
-                self.output_buffer.append(f"[bold magenta]New Axiom Learned:[/bold magenta] {new_axiom[:50]}...")
+                self.append_output(f"[bold magenta]New Axiom Learned:[/bold magenta] {new_axiom[:50]}...")
         
         tag = ""
         if self.last_entropy_verdict == "diverging" or score < (max_score * 0.4):
@@ -1155,7 +1168,7 @@ class SelfResearchOS:
         
         self.current_status = "Commiting to Memory"
         self.rag.add_document(f"{refined_topic}_{int(time.time())}", final_report)
-        self.output_buffer.append(f"[os.console.title]REPORT SAVED TO RAG.[/os.console.title]")
+        self.append_output(f"[os.console.title]REPORT SAVED TO RAG.[/os.console.title]")
 
     def show_help(self, args=None):
         table = Table(title="SelfResearch OS Command substrate", expand=True, box=ThemeEngine.BOX_STYLE if hasattr(ThemeEngine, 'BOX_STYLE') else None)
@@ -1164,7 +1177,7 @@ class SelfResearchOS:
         table.add_column("Category", style="dim")
         for cmd in sorted(self.registry.commands.values(), key=lambda x: x.category):
             table.add_row(cmd.name, cmd.description, cmd.category)
-        self.output_buffer.append(table)
+        self.append_output(table)
 
     def show_status(self, args=None):
         status_panel = Panel(
@@ -1174,31 +1187,31 @@ class SelfResearchOS:
             f"RAG Documents: [bold]{len(self.rag.memory_store) if self.rag else 0}[/bold]",
             title="OS Status", border_style=ThemeEngine.HIGHLIGHT
         )
-        self.output_buffer.append(status_panel)
+        self.append_output(status_panel)
 
     def show_tools(self, args=None):
         if not self.tool_manager: return
         tree = Tree("[os.header_accent]Discovery Tools[/os.header_accent]")
         for tool_name in self.tool_manager.active_tool_names:
             tree.add(f"[cyan]{tool_name}[/cyan]")
-        self.output_buffer.append(tree)
+        self.append_output(tree)
 
     def handle_mode_switch(self, mode=None):
         modes = ["Research", "General", "Creative", "Creative-VLM", "Simulation"]
         if not mode:
-            self.output_buffer.append(f"[os.status.info]Available Modes:[/os.status.info] {', '.join(modes)}")
+            self.append_output(f"[os.status.info]Available Modes:[/os.status.info] {', '.join(modes)}")
             return
         mode = mode.strip().title()
         if mode in [m.title() for m in modes]:
             self.current_mode = mode
             if self.tool_manager: self.tool_manager.set_mode(self.current_mode)
-            self.output_buffer.append(f"[os.status.success]Protocol shifted to: {self.current_mode}[/os.status.success]")
+            self.append_output(f"[os.status.success]Protocol shifted to: {self.current_mode}[/os.status.success]")
         else:
-            self.output_buffer.append(f"[os.status.error]Invalid Mode. Choose from: {', '.join(modes)}[/os.status.error]")
+            self.append_output(f"[os.status.error]Invalid Mode. Choose from: {', '.join(modes)}[/os.status.error]")
 
     def handle_project_switch(self, proj=None):
         if proj: self.current_project = proj.strip()
-        self.output_buffer.append(f"[os.status.success]Project Scope: {self.current_project}[/os.status.success]")
+        self.append_output(f"[os.status.success]Project Scope: {self.current_project}[/os.status.success]")
 
     def show_settings(self, args=None):
         table = Table(title="OS Substrate Configuration", expand=True)
@@ -1206,11 +1219,11 @@ class SelfResearchOS:
         table.add_column("Value", style="cyan")
         for k, v in self.settings.items():
             table.add_row(k, str(v))
-        self.output_buffer.append(table)
+        self.append_output(table)
 
     def handle_setting_update(self, args=None):
         if not args or " " not in args:
-            self.output_buffer.append("[os.status.error]Usage: /set <key> <value>[/os.status.error]")
+            self.append_output("[os.status.error]Usage: /set <key> <value>[/os.status.error]")
             return
         parts = args.split(" ", 1)
         key = parts[0]
@@ -1223,22 +1236,22 @@ class SelfResearchOS:
                 else: cast_val = val
                 self.settings[key] = cast_val
                 SettingsManager.save(self.settings)
-                self.output_buffer.append(f"[os.status.success]Substrate updated: {key} = {cast_val}[/os.status.success]")
+                self.append_output(f"[os.status.success]Substrate updated: {key} = {cast_val}[/os.status.success]")
             except Exception as e:
-                self.output_buffer.append(f"[os.status.error]Type conversion error: {e}[/os.status.error]")
+                self.append_output(f"[os.status.error]Type conversion error: {e}[/os.status.error]")
         else:
-            self.output_buffer.append(f"[os.status.error]Unknown setting: {key}[/os.status.error]")
+            self.append_output(f"[os.status.error]Unknown setting: {key}[/os.status.error]")
 
     def show_rag_stats(self, args=None):
         if not self.rag: return
-        self.output_buffer.append(f"[os.status.info]RAG Memory:[/os.status.info] {len(self.rag.memory_store)} vectors indexed.")
+        self.append_output(f"[os.status.info]RAG Memory:[/os.status.info] {len(self.rag.memory_store)} vectors indexed.")
 
     def show_hardware_info(self, args=None):
         info = f"Device: {self.device}\n"
         if torch.cuda.is_available():
             info += f"GPU: {torch.cuda.get_device_name(0)}\n"
             info += f"VRAM: {torch.cuda.memory_allocated(0)/1024**2:.1f}MB / {torch.cuda.get_device_properties(0).total_memory/1024**2:.1f}MB"
-        self.output_buffer.append(Panel(info, title="Hardware Telemetry"))
+        self.append_output(Panel(info, title="Hardware Telemetry"))
 
     def toggle_console(self, args=None): self.show_console = not self.show_console
 
