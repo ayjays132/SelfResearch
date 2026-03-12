@@ -271,6 +271,7 @@ class SelfResearchOS:
         self.last_activity_time = time.time()
         self.daemon_running = False
         self.latest_tidbit = ""
+        self.headless_mode = os.environ.get("SELFRESEARCH_HEADLESS", "0") == "1"
         self.last_entropy_verdict = "N/A"
         self.last_tool_activity = "Idle"
         self.guidance_indicator = "Awaiting guidance"
@@ -306,17 +307,27 @@ class SelfResearchOS:
             focus_on_click=True
         )
 
-        self.app = Application(
-            layout=self._setup_pt_layout(),
-            key_bindings=self.kb,
-            style=self.pt_style,
-            full_screen=True,
-            mouse_support=True,
-            refresh_interval=0.1,
-            enable_page_navigation_bindings=True
-        )
-        
-        self.app.layout.focus(self.input_field)
+        if self.headless_mode:
+            class HeadlessApp:
+                def __init__(self):
+                    self.layout = None
+                    self.key_bindings = None
+                    self.style = None
+                    self.is_running = False
+                def run(self): pass
+                def exit(self): self.is_running = False
+            self.app = HeadlessApp()
+        else:
+            self.app = Application(
+                layout=self._setup_pt_layout(),
+                key_bindings=self.kb,
+                style=self.pt_style,
+                full_screen=True,
+                mouse_support=True,
+                refresh_interval=0.1,
+                enable_page_navigation_bindings=True
+            )
+            self.app.layout.focus(self.input_field)
         self.genetic_optimizer = None 
         
         # Start boot in background

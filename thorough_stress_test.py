@@ -5,29 +5,52 @@ import logging
 import threading
 import traceback
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
+from types import SimpleNamespace
+from prompt_toolkit.output.defaults import create_output as prompt_create_output
+from prompt_toolkit.output.win32 import NoConsoleScreenBufferError
+from prompt_toolkit.output.vt100 import Vt100_Output
 
 # Force verbose logging to stdout
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s", stream=sys.stdout)
 log = logging.getLogger("stress_test")
 
-# PRE-IMPORT MOCK
-def dummy_run(self): print("   [PT MOCK]: Application initialized but not running TUI.")
+class DummyLayout(SimpleNamespace):
+    def focus(self, target): pass
 
-with patch('prompt_toolkit.application.Application.run', side_effect=dummy_run):
+class DummyApplication:
+    def __init__(self, *args, **kwargs):
+        self.layout = DummyLayout()
+        self.key_bindings = None
+        self.style = None
+        self.is_running = False
+    def run(self): self.is_running = True
+    def exit(self): self.is_running = False
+
+def safe_create_output(*args, **kwargs):
+    try:
+        return prompt_create_output(*args, **kwargs)
+    except NoConsoleScreenBufferError:
+        return Vt100_Output(sys.stdout)
+
+# PRE-IMPORT MOCK
+with patch('prompt_toolkit.output.defaults.create_output', safe_create_output), \
+     patch('prompt_toolkit.Application', DummyApplication), \
+     patch('prompt_toolkit.application.Application', DummyApplication), \
+     patch('prompt_toolkit.application.application.Application', DummyApplication):
     from main import SelfResearchOS
     from models.model_wrapper import LanguageModelWrapper
 
 class ThoroughStressTester:
     def __init__(self):
         print("\n" + "="*80)
-        print("🕵️  SOTA STOTA: THOROUGH DAEMON & TOOL SUBSTRATE AUDIT")
+        print("SOTA STOTA: THOROUGH DAEMON & TOOL SUBSTRATE AUDIT")
         print("="*80)
         
         try:
             self.os = SelfResearchOS()
         except Exception as e:
-            print(f"❌ Critical Init Error: {e}")
+            print(f"[FAIL] Critical Init Error: {e}")
             traceback.print_exc()
             sys.exit(1)
             
@@ -44,10 +67,10 @@ class ThoroughStressTester:
             time.sleep(10)
         
         if not self.os.boot_complete:
-            print("❌ Calibration failed or timed out.")
+            print("[FAIL] Calibration failed or timed out.")
             return
 
-        print("✅ Neural Kernel Active.")
+        print("[PASS] Neural Kernel Active.")
 
         print("\n[2/4] Executing Comprehensive Tool Audit...")
         test_file = "stress_test_target.py"
@@ -74,13 +97,13 @@ class ThoroughStressTester:
             try:
                 if name in self.tools:
                     res = self.tools[name].execute(**kwargs)
-                    print(f"      ✅ Success.")
+                    print(f"      [PASS] Success.")
                     results[name] = "PASS"
                 else:
-                    print(f"      ⚠️ Tool '{name}' missing from registry.")
+                    print(f"      [WARN] Tool '{name}' missing from registry.")
                     results[name] = "MISSING"
             except Exception as e:
-                print(f"      ❌ CRASH: {e}")
+                print(f"      [FAIL] CRASH: {e}")
                 results[name] = f"FAIL: {e}"
 
         print("\n[3/4] Verifying Daemon Intelligence Layer...")
@@ -89,18 +112,18 @@ class ThoroughStressTester:
             print(f"   Scheduler Logic: {next_topic}")
             results["daemon_scheduler"] = "PASS"
         except Exception as e:
-            print(f"   ❌ Scheduler Error: {e}")
+            print(f"   [FAIL] Scheduler Error: {e}")
             results["daemon_scheduler"] = "FAIL"
 
         print("\n[4/4] Final Audit Summary:")
         print("-" * 40)
         for tool, status in results.items():
-            color = "🟢" if status == "PASS" else "🔴"
-            print(f"{color} {tool.ljust(25)} : {status}")
+            marker = "[PASS]" if status == "PASS" else "[FAIL]"
+            print(f"{marker} {tool.ljust(25)} : {status}")
         
         if os.path.exists(test_file): os.remove(test_file)
         print("\n" + "="*80)
-        print("🏁 STRESS TEST COMPLETE: SUBSTRATE IS STABLE")
+        print("STRESS TEST COMPLETE: SUBSTRATE IS STABLE")
         print("="*80 + "\n")
         self.os.shutdown()
 

@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import re
 from datetime import datetime
 from typing import List, Dict, Any
@@ -218,10 +219,10 @@ class ToolManager:
                         val = val[:27] + "..."
                     formatted_kwargs.append(f"{k}={val}")
                 args_summary = ", ".join(formatted_kwargs)
-                descriptor = f\"{tool_name} ({args_summary})\" if args_summary else tool_name
-                timestamp = datetime.now().strftime(\"%H:%M:%S\")
+                descriptor = f"{tool_name} ({args_summary})" if args_summary else tool_name
+                timestamp = datetime.now().strftime("%H:%M:%S")
                 self.os.last_tool_activity = descriptor
-                self.os.guidance_indicator = f\"{tool_name.replace('_', ' ').title()} @ {timestamp}\"
+                self.os.guidance_indicator = f"{tool_name.replace('_', ' ').title()} @ {timestamp}"
             
             return True, f"<tool_result>\n{result}\n</tool_result>"
             

@@ -1,6 +1,6 @@
 {
   "name": "selfresearcher",
-  "version": "3.2.4",
+  "version": "3.3.0",
   "description": "Premium Agentic Research CLI with Self-Improving Cognitive Substrate",
   "main": "index.js",
   "bin": {
