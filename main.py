@@ -52,6 +52,7 @@ from prompt_toolkit.layout.controls import FormattedTextControl
 from prompt_toolkit.layout.layout import Layout as PTLayout
 from prompt_toolkit.layout.menus import CompletionsMenu
 from prompt_toolkit.widgets import TextArea, Frame
+from prompt_toolkit.mouse_events import MouseEvent, MouseEventType
 from prompt_toolkit.input import create_input
 from prompt_toolkit.output import create_output
 from prompt_toolkit.styles import Style as PTStyle
@@ -635,7 +636,20 @@ class SelfResearchOS:
                 render_console.print(rich_layout)
             return PTANSI(capture.get())
 
-        self.main_window = Window(content=FormattedTextControl(get_tui_content, focusable=True))
+        class ScrollAwareControl(FormattedTextControl):
+            def mouse_handler(inner_self, mouse_event: MouseEvent):
+                if mouse_event.event_type == MouseEventType.SCROLL_DOWN:
+                    self.buffer_offset = min(max(len(self.output_buffer) - 5, 0), self.buffer_offset + 3)
+                    self.auto_scroll = False
+                elif mouse_event.event_type == MouseEventType.SCROLL_UP:
+                    self.buffer_offset = max(0, self.buffer_offset - 3)
+                    if self.buffer_offset == 0:
+                        self.auto_scroll = True
+                    else:
+                        self.auto_scroll = False
+                return None
+
+        self.main_window = Window(content=ScrollAwareControl(get_tui_content, focusable=True))
         root = FloatContainer(
             content=HSplit([
                 self.main_window,
