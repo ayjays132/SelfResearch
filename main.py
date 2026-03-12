@@ -361,11 +361,11 @@ class SelfResearchOS:
     # --- ADVANCED COMMAND HANDLERS ---
     def show_credits(self, args=None):
         credits_text = Text.assemble(
-            ("   _____ ______ __     ______ ______ ______ _____ ______  ___   ____   ______ __  __   ____   _____ \n", "os.header"),
-            ("  / ___// ____// /    / ____// __  // ____// ___// ____//   | |  _ \ / ____// / / /  / __ \ / ___/ \n", "os.header"),
-            ("  \__ \/ __/  / /    / /_   / /_/ // __/   \__ \/ __/  / /| | | |_) / /    / /_/ /  / / / / \__ \  \n", "os.header_accent"),
-            (" ___/ / /___ / /___ / __/  / _, _/ /___  ___/ / /___ / ___ | |  _ < /    / __  /  / /_/ / ___/ /  \n", "os.header_accent"),
-            ("/____/_____//_____//_/    /_/ |_/_____/ /____/_____//_/  |_|/_/ |_|\____/_/ |_|   \____/ /____/   \n", "os.header"),
+            (r"   _____ ______ __     ______ ______ ______ _____ ______  ___   ____   ______ __  __   ____   _____ ", "os.header"), "\n",
+            (r"  / ___// ____// /    / ____// __  // ____// ___// ____//   | |  _ \ / ____// / / /  / __ \ / ___/ ", "os.header"), "\n",
+            (r"  \__ \/ __/  / /    / /_   / /_/ // __/   \__ \/ __/  / /| | | |_) / /    / /_/ /  / / / / \__ \  ", "os.header_accent"), "\n",
+            (r" ___/ / /___ / /___ / __/  / _, _/ /___  ___/ / /___ / ___ | |  _ < /    / __  /  / /_/ / ___/ /  ", "os.header_accent"), "\n",
+            (r"/____/_____//_____//_/    /_/ |_/_____/ /____/_____//_/  |_|/_/ |_|\____/_/ |_|   \____/ /____/   ", "os.header"), "\n",
             ("\n", ""),
             ("Developed by: ", "bold white"), ("Phillip Holland (ayjays132)", "os.branding"), ("\n", ""),
             ("Architecture: ", "bold white"), ("PhillVision Recurrent Refinement", "os.header_accent"), ("\n", ""),
@@ -418,39 +418,46 @@ class SelfResearchOS:
 
     def _daemon_loop(self):
         """Persistent background thread for heartbeat and self-triggering."""
-        while self.daemon_running:
-            time.sleep(10)
-            
-            if not self.boot_complete:
-                continue
-
-            if self.is_agent_running:
-                # 1. Heartbeat Monitor (60s ping)
-                if time.time() - self.last_activity_time > 120: # 2 minutes grace period for large context
-                    self.output_buffer.append("[bold red]⚠️ DAEMON: Research loop stalled or crashed silently. Restarting...[/bold red]")
-                    logging.warning("Daemon detected stalled thread. Force resetting agent state.")
-                    self.is_agent_running = False
-                continue
-
-            # 3. Completion Awareness
-            if self._check_completion():
-                self.output_buffer.append("[bold cyan]✨ DAEMON: All completion criteria met. Terminating session.[/bold cyan]")
-                self.handle_export_workspace()
+        try:
+            while self.daemon_running:
+                time.sleep(10)
                 
-                # Try audio export summary
-                if "export_layer" in self.tool_manager.all_tools:
-                    try:
-                        self.tool_manager.all_tools["export_layer"].execute("latest", "audio")
-                    except: pass
-                
-                self.daemon_running = False
-                self.shutdown()
-                break
+                if not self.boot_complete:
+                    continue
 
-            # 2. Self-Triggering Research Scheduler
-            next_topic = self._determine_next_topic()
-            self.output_buffer.append(f"[bold magenta]🤖 DAEMON: Auto-Triggering Next Protocol -> {next_topic}[/bold magenta]")
-            threading.Thread(target=self._run_logic, args=(next_topic,), daemon=True).start()
+                if self.is_agent_running:
+                    # 1. Heartbeat Monitor (60s ping)
+                    if time.time() - self.last_activity_time > 120: 
+                        self.output_buffer.append("[bold red]⚠️ DAEMON: Research loop stalled or crashed silently. Restarting...[/bold red]")
+                        logging.warning("Daemon detected stalled thread. Force resetting agent state.")
+                        self.is_agent_running = False
+                    continue
+
+                # 3. Completion Awareness
+                if self._check_completion():
+                    self.output_buffer.append("[bold cyan]✨ DAEMON: All completion criteria met. Terminating session.[/bold cyan]")
+                    self.handle_export_workspace()
+                    
+                    # Try audio export summary
+                    if "export_layer" in self.tool_manager.all_tools:
+                        try:
+                            self.tool_manager.all_tools["export_layer"].execute("latest", "audio")
+                        except: pass
+                    
+                    self.daemon_running = False
+                    self.shutdown()
+                    break
+
+                # 2. Self-Triggering Research Scheduler
+                next_topic = self._determine_next_topic()
+                self.output_buffer.append(f"[bold magenta]🤖 DAEMON: Auto-Triggering Next Protocol -> {next_topic}[/bold magenta]")
+                self.is_agent_running = True # Set immediately to prevent re-triggering
+                threading.Thread(target=self._run_logic, args=(next_topic,), daemon=True).start()
+
+        except Exception as e:
+            self.output_buffer.append(f"[os.status.error]DAEMON CRITICAL ERROR: {e}[/os.status.error]")
+            logging.error(f"Daemon loop crash: {e}")
+            self.daemon_running = False
 
     def _check_completion(self) -> bool:
         # Condition A: No unresolved paradoxes > 3.0
@@ -492,9 +499,12 @@ class SelfResearchOS:
         # Priority 2: Lowest scoring topic in journal
         if "iteration_tracker" in self.tool_manager.all_tools:
             try:
-                res = self.tool_manager.all_tools["iteration_tracker"].execute("physics", track_code=False)
-                if isinstance(res, dict) and "topic" in res and res.get("improvement_signal") == "neutral/negative":
-                    return f"Resolve failures in: {res['topic']}"
+                # We use 'discovery' as a general query to find previous research
+                res = self.tool_manager.all_tools["iteration_tracker"].execute("discovery", track_code=False)
+                metrics = res.get("research_metrics", {})
+                delta = metrics.get("score_delta")
+                if delta is not None and isinstance(delta, (int, float)) and delta <= 0:
+                    return f"Resolve failures in: {res.get('topic', 'previous research')}"
             except: pass
 
         # Priority 3: Fresh radical topic from preferences
@@ -719,8 +729,10 @@ class SelfResearchOS:
             elif "<tool_result>" in str(item): 
                 elements.append(Panel(str(item), border_style=ThemeEngine.SECONDARY, box=ROUNDED, title="[os.status.info]RESEARCH SIGNAL[/os.status.info]"))
             elif "SCIENTIFIC DISCOVERY REPORT" in str(item):
+                # Google Gemini style Card
                 elements.append(Panel(str(item), border_style="bold cyan", box=ROUNDED, padding=(1, 2), title="[bold white]✨ DISCOVERY CARD[/bold white]"))
             elif "[os.status.error]" in str(item):
+                # Graceful degradation Card
                 elements.append(Panel(str(item), border_style="bold red", box=ROUNDED, title="[bold white]⚠️ SYSTEM DEGRADATION[/bold white]"))
             else: 
                 elements.append(item)
