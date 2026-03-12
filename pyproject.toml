@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "selfresearch-os"
+version = "3.2.0"
+description = "Premium Agentic Research CLI with Self-Improving Cognitive Substrate"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    { name = "Phillip Holland", email = "ayjays132@gmail.com" }
+]
+keywords = ["ai", "research", "agent", "autonomous", "transformers", "pytorch"]
+dependencies = [
+    "torch",
+    "transformers",
+    "prompt_toolkit",
+    "rich",
+    "huggingface_hub",
+    "safetensors",
+    "faiss-cpu",
+    "scikit-learn",
+    "numpy",
+    "requests",
+    "beautifulsoup4",
+    "colorama",
+    "questionary"
+]
+
+[project.scripts]
+selfresearch = "main:main"
+
+[tool.setuptools]
+packages = ["SelfResearch"]
+package-dir = { "SelfResearch" = "" }

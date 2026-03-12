@@ -1,0 +1,59 @@
+# --- Ignore Everything by Default ---
+/*
+
+# --- Allow Core Substrate ---
+!main.py
+!theme_manager.py
+!settings_manager.py
+!requirements.txt
+!package.json
+!pyproject.toml
+!README.md
+!bin/
+!config/
+!models/
+!tools/
+!memory/
+!research_workflow/
+!digital_literacy/
+!assessment/
+!peer_collab/
+!security/
+!data/
+!analysis/
+!train/
+!skills/
+!workspace/
+!workspace_utils/
+
+# --- Exclude weights inside models/ ---
+models/*/
+models/*.safetensors
+models/*.bin
+models/*.json
+models/*.model
+models/*.txt
+models/*.md
+models/.cache/
+
+# --- Exclude generated data inside allowable folders ---
+data/*.csv
+data/*.json
+exports/*
+research_journal/*
+checkpoints/*
+simulation_results/*
+__pycache__
+*.pyc
+
+# --- Re-allow specific model files if needed (none for now, we auto-download) ---
+!models/__init__.py
+!models/model_wrapper.py
+
+# --- Exclude development/test scripts ---
+test_*.py
+verify_*.py
+bootstrap_test.py
+read_rag*.py
+dummy_script.py
+test_file.tmp

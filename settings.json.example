@@ -1,0 +1,14 @@
+{
+    "hardware_acceleration": "auto",
+    "enable_genetic_mutation": true,
+    "visual_browser_headless": true,
+    "max_new_tokens": 800,
+    "theme": "dark",
+    "clear_cuda_cache_on_mode_switch": true,
+    "yolo_mode": false,
+    "active_model_provider": "local",
+    "active_model_name": "Qwen/Qwen3.5-0.8B",
+    "ollama_base_url": "http://localhost:11434",
+    "openai_api_key": "YOUR_OPENAI_KEY",
+    "gemini_api_key": "YOUR_GEMINI_KEY"
+}

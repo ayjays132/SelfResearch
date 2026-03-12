@@ -1,0 +1,30 @@
+{
+  "name": "selfresearcher",
+  "version": "3.2.0",
+  "description": "Premium Agentic Research CLI with Self-Improving Cognitive Substrate",
+  "main": "index.js",
+  "bin": {
+    "selfresearcher": "bin/cli.js"
+  },
+  "scripts": {
+    "start": "node bin/cli.js",
+    "setup": "node -e \"const {spawn} = require('child_process'); const os = require('os'); const cmd = os.platform() === 'win32' ? 'python' : 'python3'; spawn(cmd, ['setup_models.py'], {stdio: 'inherit'});\""
+  },
+  "keywords": [
+    "ai",
+    "research",
+    "agent",
+    "autonomous",
+    "transformers",
+    "pytorch"
+  ],
+  "author": "Phillip Holland",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ayjays132/SelfResearch"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

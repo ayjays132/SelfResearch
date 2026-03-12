@@ -1,0 +1,68 @@
+# --- Python ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.ipynb_checkpoints/
+*.egg-info/
+dist/
+build/
+
+# --- Environments ---
+.env
+.venv
+venv/
+ENV/
+env.bak/
+
+# --- Large Assets & Models ---
+models/
+hub/
+xet/
+BART-Large-MNLI/
+EmbeddingGemma-300m/
+EMOTIONVERSE-2/
+Qwen3.5-0.8B/
+sshleifer--distilbart-cnn-12-6/
+
+# --- Research Outputs & Logs ---
+exports/
+research_journal/
+checkpoints/
+simulation_results/
+*.png
+*.csv
+*.log
+*.tmp
+*.md.html
+export_*.md
+
+# --- OS Substrate (Global Memory Local Shadows) ---
+settings.json
+preference_hierarchy.json
+paradox_manifold.json
+learned_axioms.json
+tokenizer_offset_manifest.json
+memory_store/rag_store.json
+
+# --- System/Tools ---
+.cache/
+.browser_data_dir/
+.pki/
+.secrets/
+.npm/
+.local/
+node_modules/
+
+# --- Project Specific ---
+read_rag.py
+read_rag_full.py
+read_rag_end.py
+verify_tools.py
+verify_lab.py
+verify_lab_v2.py
+verify_offset_lab.py
+bootstrap_test.py
+test_file.tmp
+dummy_script.py
