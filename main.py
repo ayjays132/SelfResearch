@@ -132,7 +132,7 @@ def make_header() -> Panel:
         (r" ___/ / /___ / /___ / __/  / _, _/ /___  ___/ / /___ / ___ | |  _ < /    / __  /  / /_/ / ___/ /  ", "os.header_accent"), "\n",
         (r"/____/_____//_____//_/    /_/ |_/_____/ /____/_____//_/  |_|/_/ |_|\____/_/ |_|   \____/ /____/   ", "os.header"), "\n",
         ("\n", ""),
-        (" SelfResearch OS v3.2.4 | ", "italic dim white"),
+        (" SelfResearch OS v3.3.2 | ", "italic dim white"),
         ("Architected by Phillip Holland (ayjays132)", "os.branding"),
         ("\n", "")
     )
@@ -925,7 +925,7 @@ class SelfResearchOS:
                 
                 # QOL: Welcome Message
                 welcome_text = (
-                    "# Welcome to SelfResearch OS v3.2.4\n"
+                    "# Welcome to SelfResearch OS v3.3.2\n"
                     "Your neural kernel is calibrated and ready for discovery.\n\n"
                     "**Quick Start:**\n"
                     "- Type a topic to start manual research.\n"

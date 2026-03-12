@@ -34,6 +34,7 @@ from tools.weight_transfer_tool import WeightTransferTool
 from tools.hybrid_initializer import HybridInitializerTool
 from tools.coherence_evaluator import CoherenceEvaluatorTool
 from tools.tokenizer_offset_manager import TokenizerOffsetManager
+from tools.skill_executor import SkillExecutorTool
 
 log = logging.getLogger(__name__)
 console = Console()
@@ -65,6 +66,7 @@ class ToolManager:
         self._register(HybridInitializerTool())
         self._register(CoherenceEvaluatorTool())
         self._register(TokenizerOffsetManager())
+        self._register(SkillExecutorTool(os_instance=self.os))
         
         # Specialized tools
         self._register(ModelArchitectTool())
@@ -99,11 +101,11 @@ class ToolManager:
         gemini_tools = ["nano_banana"] if "nano_banana" in self.all_tools else []
         
         if mode == "Research":
-            self.active_tool_names = ["calculator", "web_search", "academic_search", "epistemological_synthesizer", "unit_converter", "dataset_analyst", "scientific_plotter", "visual_browser", "workspace_a11y_tree", "empirical_generator", "simulation_lab", "export_layer", "project_indexer", "syntax_checker", "weight_transfer_tool", "coherence_evaluator", "tokenizer_offset_manager"] + gemini_tools
+            self.active_tool_names = ["calculator", "web_search", "academic_search", "epistemological_synthesizer", "unit_converter", "dataset_analyst", "scientific_plotter", "visual_browser", "workspace_a11y_tree", "empirical_generator", "simulation_lab", "export_layer", "project_indexer", "syntax_checker", "weight_transfer_tool", "coherence_evaluator", "tokenizer_offset_manager", "skill_executor"] + gemini_tools
         elif mode == "Model Maker":
-            self.active_tool_names = ["model_architect", "weight_mapper", "model_builder", "shell_executor", "sandbox_executor", "workspace_utils", "self_researcher", "calculator", "file_reader", "file_editor", "todo_manager", "ask_user", "cornell_notes", "vision_inspector", "workspace_a11y_tree", "academic_search", "project_indexer", "test_runner", "syntax_checker", "weight_transfer_tool", "hybrid_initializer", "coherence_evaluator", "tokenizer_offset_manager"] + gemini_tools
+            self.active_tool_names = ["model_architect", "weight_mapper", "model_builder", "shell_executor", "sandbox_executor", "workspace_utils", "self_researcher", "calculator", "file_reader", "file_editor", "todo_manager", "ask_user", "cornell_notes", "vision_inspector", "workspace_a11y_tree", "academic_search", "project_indexer", "test_runner", "syntax_checker", "weight_transfer_tool", "hybrid_initializer", "coherence_evaluator", "tokenizer_offset_manager", "skill_executor"] + gemini_tools
         elif mode == "Developer":
-            self.active_tool_names = ["workspace_utils", "shell_executor", "sandbox_executor", "web_search", "self_researcher", "calculator", "file_reader", "file_editor", "todo_manager", "ask_user", "cornell_notes", "vision_inspector", "workspace_a11y_tree", "project_indexer", "test_runner", "syntax_checker"] + gemini_tools
+            self.active_tool_names = ["workspace_utils", "shell_executor", "sandbox_executor", "web_search", "self_researcher", "calculator", "file_reader", "file_editor", "todo_manager", "ask_user", "cornell_notes", "vision_inspector", "workspace_a11y_tree", "project_indexer", "test_runner", "syntax_checker", "skill_executor"] + gemini_tools
         else: # Default/All
             self.active_tool_names = list(self.all_tools.keys())
 

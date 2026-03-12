@@ -6,7 +6,8 @@ import logging
 import json
 import re
 import requests
-from typing import Optional, Any, Dict, Union, List
+import copy
+from typing import Optional, Any, Dict, Union, List, Tuple
 
 # --- UNIFIED PATH RESOLUTION ---
 from config.model_paths import MODELS_DIR, resolve_model_path, ensure_model_exists
@@ -159,6 +160,8 @@ class ModelRegistry:
         return cls._embedders[cache_key]
 
 class LanguageModelWrapper:
+    DEFAULT_TOKEN_LOOP_LIMIT = 3
+    DEFAULT_CONTINUATION_RATIO = 0.75
     def __init__(self, model_name: str = "Qwen/Qwen3.5-0.8B", device: Optional[str] = None, provider: str = "local") -> None:
         self.model_name = model_name
         self.device_str = device
@@ -193,13 +196,12 @@ class LanguageModelWrapper:
         user_content.append({"type": "text", "text": full_user_text})
         messages.append({"role": "user", "content": user_content})
 
-        max_loops = 5
-        current_loop = 0
-        
-        while current_loop < max_loops:
-            current_loop += 1
-            
-            # Dispatch based on provider
+        return self._thinking_loop(messages, prompt, use_tools, tool_manager, n_variations, **kwargs)
+
+    def _thinking_loop(self, messages: List[Dict], prompt: str, use_tools: bool, tool_manager: Optional[Any], n_variations: int, **kwargs) -> Union[str, List[str]]:
+        loop_guard = 0
+        final_response: Union[str, List[str]] = ""
+        while True:
             if self.provider == "local" or "EMOTIONVERSE" in self.model_name:
                 decoded = self._generate_local(messages, n_variations=n_variations, **kwargs)
             elif self.provider == "ollama":
@@ -214,43 +216,86 @@ class LanguageModelWrapper:
             else:
                 return f"Error: Provider '{self.provider}' not supported."
 
-            # Clean output
             if isinstance(decoded, list):
                 decoded = [self._clean_output(d) for d in decoded]
             else:
                 decoded = self._clean_output(decoded)
-            
+
             if not use_tools:
                 return decoded
-                
-            # Use the provided tool manager or fallback (Tool usage only supports single string)
+
             tm = tool_manager if tool_manager else ToolManager()
-            called, result = tm.parse_and_execute(decoded if isinstance(decoded, str) else decoded[0])
-            
-            if called:
-                # Add history for next iteration
-                messages.append({"role": "assistant", "content": [{"type": "text", "text": decoded if isinstance(decoded, str) else decoded[0]}]})
-                
-                # --- PARALLEL PEER REVIEW INJECTION ---
-                reviewer_insight = ""
-                if getattr(self, "enable_peer_review", False):
-                    from peer_collab.active_reviewer import get_active_reviewer
-                    reviewer = get_active_reviewer(self.model_name)
-                    self.enable_peer_review = False
-                    reviewer_insight = reviewer.review_action(decoded if isinstance(decoded, str) else decoded[0], result)
-                    self.enable_peer_review = True
-                    
-                final_result = result
-                if reviewer_insight:
-                    final_result += f"\n\n[Parallel Peer Reviewer Insight]: {reviewer_insight}"
-                    
-                messages.append({"role": "user", "content": [{"type": "text", "text": final_result}]})
-            else:
+            choice = decoded if isinstance(decoded, str) else decoded[0]
+            called, result = tm.parse_and_execute(choice)
+            if not called:
                 return decoded
-                
-        return "Loop limit reached."
+
+            messages.append({"role": "assistant", "content": [{"type": "text", "text": choice}]})
+
+            reviewer_insight = ""
+            if getattr(self, "enable_peer_review", False):
+                from peer_collab.active_reviewer import get_active_reviewer
+                reviewer = get_active_reviewer(self.model_name)
+                self.enable_peer_review = False
+                reviewer_insight = reviewer.review_action(choice, result)
+                self.enable_peer_review = True
+
+            full_result = result
+            if reviewer_insight:
+                full_result += f"\n\n[Parallel Peer Reviewer Insight]: {reviewer_insight}"
+
+            messages.append({"role": "user", "content": [{"type": "text", "text": full_result}]})
+            loop_guard += 1
+            if loop_guard >= kwargs.get("max_loop_iterations", 20):
+                return decoded
 
     def _generate_local(self, messages: List[Dict], n_variations: int = 1, **kwargs) -> Union[str, List[str]]:
+        max_new_tokens = kwargs.get("max_new_tokens", 400)
+        gen_kwargs = {
+            "max_new_tokens": max_new_tokens,
+            "do_sample": kwargs.get("do_sample", True),
+            "temperature": kwargs.get("temperature", 0.7),
+        }
+
+        if n_variations > 1:
+            gen_kwargs["num_return_sequences"] = n_variations
+            inputs, prompt_len = self._prepare_local_inputs(messages)
+            with torch.no_grad():
+                outputs = self.model.generate(**inputs, **gen_kwargs)
+            return [self.processor.decode(out[prompt_len:], skip_special_tokens=True) for out in outputs]
+
+        loop_until_complete = kwargs.get("loop_until_complete", True)
+        loop_limit = kwargs.get("max_token_loops", self.DEFAULT_TOKEN_LOOP_LIMIT)
+        continuation_ratio = kwargs.get("continuation_ratio", self.DEFAULT_CONTINUATION_RATIO)
+
+        work_messages = [copy.deepcopy(m) for m in messages]
+        chunks: List[str] = []
+        loop_count = 0
+
+        while True:
+            inputs, prompt_len = self._prepare_local_inputs(work_messages)
+            with torch.no_grad():
+                outputs = self.model.generate(**inputs, **gen_kwargs)
+
+            generated_chunk = self.processor.decode(outputs[0][prompt_len:], skip_special_tokens=True).strip()
+            if not generated_chunk:
+                break
+            chunks.append(generated_chunk)
+
+            if not loop_until_complete:
+                break
+            if len(generated_chunk.split()) < max_new_tokens * continuation_ratio:
+                break
+            if loop_count >= loop_limit:
+                break
+
+            loop_count += 1
+            work_messages.append({"role": "assistant", "content": [{"type": "text", "text": generated_chunk}]})
+
+        final_output = "\n\n".join(chunks).strip()
+        return final_output
+
+    def _prepare_local_inputs(self, messages: List[Dict]) -> Tuple[Dict[str, Any], int]:
         if hasattr(self.processor, "apply_chat_template"):
             inputs = self.processor.apply_chat_template(
                 messages, add_generation_prompt=True, tokenize=True,
@@ -259,20 +304,8 @@ class LanguageModelWrapper:
         else:
             text_input = messages[-1]["content"][-1]["text"]
             inputs = self.processor(text_input, return_tensors="pt").to(self.device)
-
-        gen_kwargs = {
-            "max_new_tokens": kwargs.get("max_new_tokens", 400),
-            "do_sample": kwargs.get("do_sample", True),
-            "temperature": kwargs.get("temperature", 0.7),
-            "num_return_sequences": n_variations
-        }
-        with torch.no_grad():
-            outputs = self.model.generate(**inputs, **gen_kwargs)
-        
-        input_len = inputs["input_ids"].shape[-1]
-        if n_variations > 1:
-            return [self.processor.decode(out[input_len:], skip_special_tokens=True) for out in outputs]
-        return self.processor.decode(outputs[0][input_len:], skip_special_tokens=True)
+        prompt_len = inputs["input_ids"].shape[-1]
+        return inputs, prompt_len
 
     def _generate_gemini_auto(self, messages: List[Dict], **kwargs) -> str:
         """Gracefully degrades through Gemini models: 3.1 Pro -> 3.1 Flash -> 2.5 Flash."""

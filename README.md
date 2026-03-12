@@ -1,11 +1,13 @@
-# 🧠 SelfResearch OS v3.3.1
+﻿# ðŸ§  SelfResearch OS v3.3.2
 
 ![Phill SelfResearcher OS CLI Banner](./example/image.png)
+
+*Header art is staged via `example/image.png`; swap this asset when refreshing the CLI hero screenshot so README visuals stay in sync with theme updates.*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Architecture: PhillVision](https://img.shields.io/badge/Architecture-PhillVision-00ff87.svg)](#)
-[![Version: 3.3.1](https://img.shields.io/badge/Version-3.3.1-blue.svg)](#)
+[![Version: 3.3.2](https://img.shields.io/badge/Version-3.3.2-blue.svg)](#)
 
 > **"Intelligence is not just processing; it is the autonomous pursuit of truth through productive confusion."**
 
@@ -13,31 +15,31 @@
 
 ---
 
-## 🌌 The Vision: Autonomous Scientific Intelligence
+## ðŸŒŒ The Vision: Autonomous Scientific Intelligence
 
 SelfResearch OS (SROS) is built on the **PhillVision Recurrent Refinement** architecture. Unlike standard chatbots, SROS is an **Embodied Discovery Agent**. It doesn't just answer questions; it generates radical hypotheses, executes falsifiable predictions via real-world tools, and evolves its own internal "Rubric of Truth" based on empirical feedback.
 
 ---
 
-## 🚀 Core Pillar Features
+## ðŸš€ Core Pillar Features
 
-### 🛠️ 1. Autonomous Discovery Substrate (The Daemon)
+### ðŸ› ï¸ 1. Autonomous Discovery Substrate (The Daemon)
 - **Deep Research Loops**: The OS can run unattended for hours. Its heartbeat monitor (now calibrated to a 1-hour stall threshold) ensures stability during massive computations.
 - **YOLO (You Only Learn Once) Mode**: Full-autonomy protocol that navigates from a seed topic to a finalized discovery report, complete with RAG (Retrieval Augmented Generation) commits.
-- **Obsession-Driven Scheduling**: The system tracks "Paradoxes"—contradictions it cannot solve—and treats them as high-priority research vectors.
+- **Obsession-Driven Scheduling**: The system tracks "Paradoxes"â€”contradictions it cannot solveâ€”and treats them as high-priority research vectors.
 
-### 🧠 2. Self-Improving Cognitive State
+### ðŸ§  2. Self-Improving Cognitive State
 - **Neuromorphic Reward Circuit**: SROS uses a simulated dopamine system. **Discovery signals** (novelty/care factor) drive exploration, while **Utility signals** (rubric-grounded truth) ensure scientific rigor.
 - **Methodological Axiom Learning**: When a breakthrough is achieved, the system extracts the *underlying rule* used to find it. These "Axioms" are persisted machine-wide in `~/.selfresearch/learned_axioms.json` and injected into the system's future identity.
 - **Genetic Evolution Persistence**: All behavioral improvements from the Test-Time Optimizer (including generation scores out of 40+ and mutated neural weights) are physically saved to disk. SROS doesn't just re-learn; it **evolves permanently** across restarts.
 - **Truth-Gated Logic**: Learning only occurs when (Dopamine > 12.0) AND (Entropy == "converging") AND (Rubric Score > 70%).
 
-### 🧪 3. The Weight Transfer Lab
+### ðŸ§ª 3. The Weight Transfer Lab
 - **Multi-Modal Projection**: Specifically designed to bridge the gap between Text, Speech, and Vision models.
 - **Tokenizer Offset Manifest**: Resolves the "Representation Conflict" by mathematically partitioning the vocabulary space (Text: 0, Speech: 151k, Vision: 183k).
 - **Automated Coherence Audits**: The system can transfer weights between architectures and immediately run a "Coherence Test" to verify if the intelligence survived the transition.
 
-### 🏢 4. Developer-Grade Tooling Registry
+### ðŸ¢ 4. Developer-Grade Tooling Registry
 - **Project Indexer**: Builds a full AST graph of your codebase. Ask SROS to "Refactor the neural kernel," and it understands the dependencies.
 - **Sandbox Executor**: Runs code in a versioned snapshot. If a discovery script crashes, the OS can roll back the file system state.
 - **LSP-Integrated Syntax Checker**: Automatically validates Python/JS discovery scripts before execution.
@@ -45,7 +47,7 @@ SelfResearch OS (SROS) is built on the **PhillVision Recurrent Refinement** arch
 
 ---
 
-## 🏗️ Technical Architecture Diagram
+## ðŸ—ï¸ Technical Architecture Diagram
 
 ```text
 [ USER INPUT / DAEMON TRIGGER ]
@@ -69,7 +71,7 @@ SelfResearch OS (SROS) is built on the **PhillVision Recurrent Refinement** arch
 
 ---
 
-## 🛠️ Installation & Setup
+## ðŸ› ï¸ Installation & Setup
 
 ### **Quick Start (NPM)**
 The easiest way to get the global `selfresearcher` command:
@@ -97,7 +99,11 @@ selfresearcher
 
 ---
 
-## 🎮 Command Substrate Reference
+## Model Downloads & Example Assets
+
+`setup_models.py` (or `npm run setup`) handles the first-run bootstrap by downloading the HuggingFace weights directly into `./models/` (or `SELFRESEARCH_MODELS_DIR`). This keeps Windows, Linux, and macOS installations aligned and ready for offline operation. The `example/image.png` hero image is the visual that the README displays, so update it whenever you refresh the CLI theme to keep the presentation consistent.
+
+## ðŸŽ® Command Substrate Reference
 
 | Command | Category | Description |
 | :--- | :--- | :--- |
@@ -114,7 +120,7 @@ selfresearcher
 
 ---
 
-## ⚙️ Advanced Configuration (`settings.json`)
+## âš™ï¸ Advanced Configuration (`settings.json`)
 
 Tweak your OS's personality in `~/.selfresearch/settings.json`:
 - `care_factor_threshold`: Higher values make the agent more obsessive.
@@ -123,23 +129,37 @@ Tweak your OS's personality in `~/.selfresearch/settings.json`:
 
 ---
 
-## 🎨 Premium Terminal Experience
+## ðŸŽ¨ Premium Terminal Experience
 
-SelfResearch OS v3.3.1 now ships with polished visual railings for every CLI component:
+SelfResearch OS v3.3.2 now ships with polished visual railings for every CLI component:
 - **Semantic Borders + Theme Sync:** Every theme palette defines a `border` color so windows, prompts, and panels share a single premium accent.
-- **Live Thinking System Telemetry:** The sidebar displays “Guided By” + timestamps and a “Thinking System” block so you always know which guider or tool is steering the daemon and when.
+- **Live Thinking System Telemetry:** The sidebar displays â€œGuided Byâ€ + timestamps and a â€œThinking Systemâ€ block so you always know which guider or tool is steering the daemon and when.
 - **Autoscroll Intelligence:** Automatic workspace autoscroll resets on new content but pauses when you manually scroll; toggle it with `/autoscroll` and see the current state directly in the subtitle and sidebar for debugging clarity.
+- **Token Management Loop:** The generator now wraps every core prompt inside a lightweight scaffolding loop so it keeps chaining new tokens, tool data, and reasoning context until each discovery report naturally finishes; this prevents mid-response cut-offs and ensures every final answer contains the full inferred narrative.
 - **Debug Console Readiness:** `/console` (Ctrl+T) plus `/hw` now surface color-coded logs with consistent contrast across Windows/Unix terminals, eliminating boot-time surprises during stress tests.
 
-## 🧪 Validation & Stress Testing
+## ðŸ§ª Validation & Stress Testing
 
-- **Daemon-grade stability:** `/daemon` preserves every mode’s styling while running structured hypotheses, telemetry, and completion checks; the stress-test scripts exercise those pathways fully before you publish to GitHub/NPM.
-- **Mode coverage:** Research, Model Maker, and Developer modes share the same polished CLI scaffold, so switching context doesn’t regress the premium visuals or tool routing.
+- **Daemon-grade stability:** `/daemon` preserves every modeâ€™s styling while running structured hypotheses, telemetry, and completion checks; the stress-test scripts exercise those pathways fully before you publish to GitHub/NPM.
+- **Mode coverage:** Research, Model Maker, and Developer modes share the same polished CLI scaffold, so switching context doesnâ€™t regress the premium visuals or tool routing.
 - **Debug-first verification:** The intelligent thinking system, console toggles, and autoscroll indicator make it trivial to trace any automation failure or bug during a full discovery loop, letting you ship with confidence.
 
 ---
 
-## 👤 Author & Credits
+## 🧠 Skill Forge & Tooling
+
+SelfResearch OS keeps every skill in the `skills/` folder synchronized with the `SkillManager`. Use the `skill_executor` tool to inspect, retrieve, or forge new skills without exiting discovery mode. Any phase that requires a new competency can reference the tool like this:
+
+```
+<tool_call>
+{"name": "skill_executor", "kwargs": {"action": "forge", "task_name": "critical_thinking", "task_description": "Optimize long-form reasoning loops and token management summaries."}}
+</tool_call>
+```
+
+Retrieving skills is equally straightforward: set `"action": "retrieve"` and provide the `task_description` so the Skill Forge returns the most relevant templates for the current scientific protocol. The tool also exposes a `"list"` action when you want an inventory of all workspace/global skills.
+
+
+## ðŸ‘¤ Author & Credits
 **Phillip Holland (ayjays132)**  
 Lead Architect | Visionary Scientist | AI Substrate Engineer
 
@@ -147,8 +167,11 @@ Lead Architect | Visionary Scientist | AI Substrate Engineer
 
 ---
 
-## 📄 License
+## ðŸ“„ License
 MIT License. See `LICENSE` for details.
 
 ---
-*Generated by the SelfResearch Neural Kernel - v3.3.1*
+*Generated by the SelfResearch Neural Kernel - v3.3.2*
+
+
+
