@@ -23,6 +23,11 @@ class GeneticTestTimeOptimizer:
         self.grader = grader
         self.os = os_instance
         
+        # Persistence Paths
+        from config.model_paths import GLOBAL_ROOT
+        self.state_path = os.path.join(GLOBAL_ROOT, "genetic_state.json")
+        self.weight_path = os.path.join(GLOBAL_ROOT, "mutated_layer.pt")
+        
         # SOTA Config
         self.mutation_scale = 1e-4
         self.momentum_beta = 0.9
@@ -51,7 +56,6 @@ class GeneticTestTimeOptimizer:
             "Technical Precision": {"expected_content": "Uses correct terminology and precise language.", "max_score": 10},
             "Syntactic Elegance": {"expected_content": "Fluent, professional academic tone.", "max_score": 10}
         }
-        # Initial max is 40. We can add more categories as we improve.
         
         try:
             # Targeted mutation of the transformer output head for systemic behavioral shift
@@ -61,6 +65,46 @@ class GeneticTestTimeOptimizer:
         except AttributeError:
             # Fallback for different model architectures
             self.layer_to_mutate = list(self.vlm.model.parameters())[-1] 
+            
+        self._load_state()
+
+    def _load_state(self):
+        """Loads previous genetic breakthroughs from the global root."""
+        if os.path.exists(self.state_path):
+            try:
+                with open(self.state_path, "r") as f:
+                    state = json.load(f)
+                    self.best_score = state.get("best_score", 0.0)
+                    self.generation = state.get("generation", 0)
+                    self.mutation_scale = state.get("mutation_scale", 1e-4)
+                    log.info(f"Loaded genetic state: Gen {self.generation}, Score {self.best_score:.2f}")
+            except Exception as e:
+                log.error(f"Failed to load genetic state: {e}")
+
+        if os.path.exists(self.weight_path):
+            try:
+                mutated_weights = torch.load(self.weight_path, map_location=self.vlm.device)
+                with torch.no_grad():
+                    self.layer_to_mutate.weight.data.copy_(mutated_weights)
+                log.info("Successfully restored mutated weights from global substrate.")
+            except Exception as e:
+                log.error(f"Failed to restore mutated weights: {e}")
+
+    def _save_state(self):
+        """Persists the current best genetic state to disk."""
+        try:
+            state = {
+                "best_score": self.best_score,
+                "generation": self.generation,
+                "mutation_scale": self.mutation_scale,
+                "timestamp": time.time()
+            }
+            with open(self.state_path, "w") as f:
+                json.dump(state, f, indent=2)
+            
+            torch.save(self.layer_to_mutate.weight.data, self.weight_path)
+        except Exception as e:
+            log.error(f"Failed to save genetic state: {e}")
             
     def start(self):
         if not self._running:
@@ -150,6 +194,7 @@ class GeneticTestTimeOptimizer:
                     self.mutation_scale *= 1.1 # Increase exploration on success
                     self.convergence_patience = 0
                     self._log(f"[os.status.success]🧬 Generation {self.generation}: Improvement! {new_score:.2f}/{max_possible:.1f} (+{diff:.1f})[/os.status.success]", level="success", to_workspace=True)
+                    self._save_state()
                 else:
                     # Failure: Revert and decrease scale
                     with torch.no_grad():

@@ -54,7 +54,7 @@ class SelfResearchTool(BaseTool):
             if cached_res:
                 return f"CACHED RECURSIVE RESEARCH FOR '{topic}':\n\n{cached_res}"
 
-            print(f"\n[bold magenta]>>> INITIATING NESTED RESEARCH PROTOCOL: {topic}[/bold magenta]")
+            log.info(f"SelfResearcher: Initiating nested research protocol for: {topic}")
             
             # Phase A: Refinement
             refined = self.os.topic_selector.suggest_topic(topic)

@@ -34,6 +34,7 @@ class ThemeEngine(metaclass=ThemeMeta):
             "accent": "#00ffff",       # Cyan
             "secondary": "#007bff",    # Dodger Blue
             "highlight": "#bd93f9",    # Plum
+            "border": "#00ffff",
             "warning": "#ffb86c",      # Orange
             "danger": "#ff5555",       # Red
             "info": "#8be9fd",         # Purple/Cyan
@@ -49,6 +50,7 @@ class ThemeEngine(metaclass=ThemeMeta):
             "accent": "#00cc00",
             "secondary": "#009900",
             "highlight": "#00ffcc",
+            "border": "#00ff66",
             "warning": "#ccff00",
             "danger": "#ff0000",
             "info": "#00ff66",
@@ -59,11 +61,44 @@ class ThemeEngine(metaclass=ThemeMeta):
             "dim": "#004400",
             "success": "#00ff00"
         },
+        "synthwave": {
+            "primary": "#ff71ce",
+            "accent": "#f39c12",
+            "secondary": "#36d7b7",
+            "highlight": "#a29bfe",
+            "border": "#ff71ce",
+            "warning": "#f1c40f",
+            "danger": "#e74c3c",
+            "info": "#00cec9",
+            "orchestrator": "#fd79a8",
+            "proxy": "#55efc4",
+            "bg": "#2b213a",
+            "text": "#f8f8f2",
+            "dim": "#6c5ce7",
+            "success": "#00b894"
+        },
+        "dracula": {
+            "primary": "#ff79c6",
+            "accent": "#bd93f9",
+            "secondary": "#8be9fd",
+            "highlight": "#50fa7b",
+            "border": "#bd93f9",
+            "warning": "#f1fa8c",
+            "danger": "#ff5555",
+            "info": "#8be9fd",
+            "orchestrator": "#ffb86c",
+            "proxy": "#50fa7b",
+            "bg": "#282a36",
+            "text": "#f8f8f2",
+            "dim": "#6272a4",
+            "success": "#50fa7b"
+        },
         "cyberpunk": {
             "primary": "#f1fa8c",      # Yellow
             "accent": "#ff79c6",       # Pink
             "secondary": "#bd93f9",    # Purple
             "highlight": "#8be9fd",    # Cyan
+            "border": "#ff79c6",
             "warning": "#ffb86c",
             "danger": "#ff5555",
             "info": "#f1fa8c",
@@ -79,6 +114,7 @@ class ThemeEngine(metaclass=ThemeMeta):
             "accent": "#005f5f",
             "secondary": "#0000af",
             "highlight": "#8700af",
+            "border": "#005f5f",
             "warning": "#af5f00",
             "danger": "#af0000",
             "info": "#008787",
@@ -94,6 +130,7 @@ class ThemeEngine(metaclass=ThemeMeta):
             "accent": "#ffff00",
             "secondary": "#00ffff",
             "highlight": "#ff00ff",
+            "border": "#ffffff",
             "warning": "#ff8800",
             "danger": "#ff0000",
             "info": "#00ffff",
@@ -124,6 +161,7 @@ class ThemeEngine(metaclass=ThemeMeta):
             "os.workspace.text": p['text'],
             "os.console.title": f"bold {p['highlight']}",
             "os.console.log": f"{p['dim']}",
+            "os.border": f"bold {p['border']}",
             "os.status.success": f"bold {p['success']}",
             "os.status.error": f"bold {p['danger']}",
             "os.status.warning": f"bold {p['warning']}",
@@ -155,7 +193,7 @@ class ThemeEngine(metaclass=ThemeMeta):
             'completion-menu.meta.completion.current': f"bg:{p['primary']} fg:{p['bg']} italic",
             'scrollbar.background': f"bg:{p['bg']}",
             'scrollbar.button': f"bg:{p['secondary']}",
-            'frame.border': f"fg:{p['primary']}",
+            'frame.border': f"fg:{p['border']}",
             'prompt': f"fg:{p['primary']} bold",
             'prompt.symbol': f"fg:{p['warning']}",
             'prompt.name': f"bg:{p['warning']} fg:{p['bg']} bold",

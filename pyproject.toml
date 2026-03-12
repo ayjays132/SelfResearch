@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "selfresearch-os"
-version = "3.2.2"
+version = "3.2.4"
 description = "Premium Agentic Research CLI with Self-Improving Cognitive Substrate"
 readme = "README.md"
 requires-python = ">=3.10"

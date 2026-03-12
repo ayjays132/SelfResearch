@@ -131,7 +131,7 @@ def make_header() -> Panel:
         (r" ___/ / /___ / /___ / __/  / _, _/ /___  ___/ / /___ / ___ | |  _ < /    / __  /  / /_/ / ___/ /  ", "os.header_accent"), "\n",
         (r"/____/_____//_____//_/    /_/ |_/_____/ /____/_____//_/  |_|/_/ |_|\____/_/ |_|   \____/ /____/   ", "os.header"), "\n",
         ("\n", ""),
-        (" SelfResearch OS v3.2.2 | ", "italic dim white"),
+        (" SelfResearch OS v3.2.4 | ", "italic dim white"),
         ("Architected by Phillip Holland (ayjays132)", "os.branding"),
         ("\n", "")
     )
@@ -252,6 +252,7 @@ class SelfResearchOS:
         self.output_buffer = deque(maxlen=200)
         self.buffer_offset = 0
         self.show_console = False
+        self.user_scaffold_queue = []
         os.makedirs(self.journal_dir, exist_ok=True)
         
         # Deferred initialization
@@ -271,6 +272,10 @@ class SelfResearchOS:
         self.daemon_running = False
         self.latest_tidbit = ""
         self.last_entropy_verdict = "N/A"
+        self.last_tool_activity = "Idle"
+        self.guidance_indicator = "Awaiting guidance"
+        self.latest_hypothesis_template = ""
+        self.auto_scroll = True
         self.required_models = [
             "Qwen/Qwen3.5-0.8B",
             "google/embeddinggemma-300m",
@@ -334,7 +339,8 @@ class SelfResearchOS:
     def append_output(self, item):
         """Appends to buffer and resets offset for autoscroll."""
         self.output_buffer.append(item)
-        self.buffer_offset = 0
+        if self.auto_scroll:
+            self.buffer_offset = 0
         self.ping_heartbeat()
 
     def _init_commands(self):
@@ -355,6 +361,7 @@ class SelfResearchOS:
         self.registry.add("/project", self.handle_project_switch, "Change research project scope", "Discovery")
         self.registry.add("/research", self.handle_research_direct, "Trigger a specific research protocol", "Discovery")
         self.registry.add("/tools", self.show_tools, "List active research tools", "Discovery")
+        self.registry.add("/stop", self.handle_stop_daemon, "Force stop the autonomous daemon loop", "Discovery")
 
         # 3. Memory & UI Category
         self.registry.add("/rag", self.show_rag_stats, "Inspect vector memory metrics", "Memory")
@@ -366,9 +373,18 @@ class SelfResearchOS:
         self.registry.add("/theme", self.handle_theme_switch, "Switch OS visual theme", "UI",
                           completer=lambda partial: list(ThemeEngine.PALETTES.keys()), requires_boot=False)
         self.registry.add("/daemon", self.toggle_daemon, "Toggle Autonomous Run Loop (YOLO Mode)", "Discovery")
+        self.registry.add("/autoscroll", self.toggle_autoscroll, "Toggle automatic workspace autoscroll", "UI", requires_boot=False)
         self.registry.add("/credits", self.show_credits, "Display OS architect information", "System", requires_boot=False)
 
     # --- ADVANCED COMMAND HANDLERS ---
+    def handle_stop_daemon(self, args=None):
+        if self.daemon_running or self.is_agent_running:
+            self.daemon_running = False
+            self.is_agent_running = False
+            self.append_output("[bold red]🛑 DAEMON FORCE-STOPPED. User control restored.[/bold red]")
+            self.current_status = "Idle"
+        else:
+            self.append_output("[os.status.info]Daemon is not currently running.[/os.status.info]")
     def show_credits(self, args=None):
         credits_text = Text.assemble(
             (r"   _____ ______ __     ______ ______ ______ _____ ______  ___   ____   ______ __  __   ____   _____ ", "os.header"), "\n",
@@ -436,8 +452,8 @@ class SelfResearchOS:
                     continue
 
                 if self.is_agent_running:
-                    # 1. Heartbeat Monitor (3600s stall threshold for deep research)
-                    if time.time() - self.last_activity_time > 3600: 
+                    # 1. Heartbeat Monitor (10800s / 3-hour stall threshold for intense deep research)
+                    if time.time() - self.last_activity_time > 10800: 
                         self.append_output("[bold red]⚠️ DAEMON: Research loop stalled or crashed silently. Restarting...[/bold red]")
                         logging.warning("Daemon detected stalled thread. Force resetting agent state.")
                         self.is_agent_running = False
@@ -568,15 +584,27 @@ class SelfResearchOS:
         
         self.append_output(f"[os.status.success]Visual substrate live-recalibrated to {theme.upper()}.[/os.status.success]")
 
+    def toggle_autoscroll(self, args=None):
+        self.auto_scroll = not self.auto_scroll
+        status = "ENABLED" if self.auto_scroll else "PAUSED"
+        if self.auto_scroll:
+            self.buffer_offset = 0
+        self.append_output(f"[os.status.success]Autoscroll {status}. Use /autoscroll to toggle.[/os.status.success]")
+
     def _setup_keybindings(self):
         @self.kb.add('c-t')
         def _(event): self.show_console = not self.show_console
         @self.kb.add('c-l')
         def _(event): self.handle_clear_workspace()
         @self.kb.add('pageup')
-        def _(event): self.buffer_offset = min(len(self.output_buffer) - 5, self.buffer_offset + 5)
+        def _(event):
+            self.buffer_offset = min(len(self.output_buffer) - 5, self.buffer_offset + 5)
+            self.auto_scroll = False
         @self.kb.add('pagedown')
-        def _(event): self.buffer_offset = max(0, self.buffer_offset - 5)
+        def _(event):
+            self.buffer_offset = max(0, self.buffer_offset - 5)
+            if self.buffer_offset == 0:
+                self.auto_scroll = True
         @self.kb.add('tab')
         def _(event):
             if event.app.layout.has_focus(self.input_field):
@@ -586,7 +614,10 @@ class SelfResearchOS:
 
     def _setup_pt_layout(self):
         def get_tui_content():
-            try: render_console.width = self.app.output.get_size().columns
+            try: 
+                term_size = self.app.output.get_size()
+                # Subtract 4 rows for the input frame to prevent overlapping UI
+                render_console.size = (term_size.columns, max(10, term_size.rows - 4))
             except: pass
             rich_layout = self.render_rich_layout()
             with render_console.capture() as capture:
@@ -597,6 +628,7 @@ class SelfResearchOS:
         root = FloatContainer(
             content=HSplit([
                 self.main_window,
+                Window(height=1, char=' '), # Padding
                 Frame(self.input_field, title="[ PHIL-OS SUBSTRATE ]", style="class:os.border")
             ]),
             floats=[
@@ -656,13 +688,16 @@ class SelfResearchOS:
                 with open(self.axiom_path, "r") as f: axioms_count = len(json.load(f))
             except: pass
         meta_table.add_row("[os.sidebar.label]AXIOMS[/os.sidebar.label]", f"[bold cyan]{axioms_count}[/bold cyan]")
+        auto_label = "[bold green]ON[/bold green]" if self.auto_scroll else "[bold red]OFF[/bold red]"
+        meta_table.add_row("[os.sidebar.label]AUTOSCROLL[/os.sidebar.label]", auto_label)
 
         latest_hypo = "Awaiting Hypothesis..."
         for item in reversed(self.output_buffer):
             if "Hypothesis:" in str(item):
                 latest_hypo = str(item).split("Hypothesis:")[1].strip()
                 break
-        cue_panel = Text(latest_hypo, style="italic dim", overflow="ellipsis", no_wrap=False)
+        cue_text = self.latest_hypothesis_template or latest_hypo
+        cue_panel = Text(cue_text, style="italic dim", overflow="ellipsis", no_wrap=False)
         
         def make_bar(val: float, color: str) -> str:
             filled = int(val)
@@ -683,6 +718,9 @@ class SelfResearchOS:
         intel_table.add_row("[bold orange3]DOPAMINE[/bold orange3]", f"[bold]{dope_val:.1f}[/bold] ng")
         
         daemon_status = "[bold green]ACTIVE[/bold green]" if self.daemon_running else "[dim]INACTIVE[/dim]"
+        guidance_table = Table(show_header=False, box=None, padding=(0, 1), expand=True)
+        guidance_table.add_row("[os.sidebar.label]GUIDED BY[/os.sidebar.label]", Text(self.last_tool_activity, overflow="ellipsis"))
+        guidance_table.add_row("[os.sidebar.label]THINKING[/os.sidebar.label]", f"[os.status.info]{self.guidance_indicator}[/os.status.info]")
 
         return Panel(
             Group(
@@ -691,6 +729,7 @@ class SelfResearchOS:
                 "\n[os.header_accent]RESEARCH CUES[/os.header_accent]", cue_panel,
                 "\n[os.header_accent]NEURAL SUBSTRATE[/os.header_accent]", substrate_table,
                 "\n[os.header_accent]SOTA INTEL[/os.header_accent]", intel_table,
+                "\n[os.header_accent]THINKING SYSTEM[/os.header_accent]", guidance_table,
                 f"\n[bold]{self.neuro_chemistry.state}[/bold]"
             ), 
             title="[os.header_accent]PHIL-OS SUBSTRATE[/os.header_accent]", 
@@ -734,6 +773,10 @@ class SelfResearchOS:
         
         elements = []
         from rich.box import ROUNDED
+        
+        if self.daemon_running:
+            elements.append(Panel(Align.center("[bold magenta]🧠 YOLO MODE ACTIVE[/bold magenta] - Autonomous discovery protocol engaged. Type /stop to halt."), border_style="magenta", box=ROUNDED))
+            
         for item in view:
             if isinstance(item, (Panel, Table, Group, Tree)): 
                 elements.append(item)
@@ -755,7 +798,8 @@ class SelfResearchOS:
         # Neural Pulse in Title
         pulse = ["·", "•", "●", "•", "·"][int(time.time()*2)%5]
         title = f"[os.workspace.title]{pulse} DISCOVERY WORKSPACE {pulse}[/os.workspace.title]"
-        subtitle = f"[os.workspace.subtitle]Steps: {len(buf)} | Scroll: {self.buffer_offset} | /help[/os.workspace.subtitle]"
+        auto_label = "ON" if self.auto_scroll else "OFF"
+        subtitle = f"[os.workspace.subtitle]Steps: {len(buf)} | Scroll: {self.buffer_offset} | Auto: {auto_label} | /help[/os.workspace.subtitle]"
         return Panel(Group(*elements), title=title, subtitle=subtitle, border_style=border_style)
 
     def _get_footer_panel(self) -> Panel:
@@ -766,6 +810,11 @@ class SelfResearchOS:
         text = buffer.text.strip()
         if not text: return
         if not self.registry.execute(text):
+            if self.is_agent_running:
+                self.append_output(f"[bold cyan]👤 USER SCAFFOLDING INJECTED:[/bold cyan] {text}")
+                self.user_scaffold_queue.append(text)
+                buffer.text = ""
+                return
             threading.Thread(target=self._run_logic, args=(text,), daemon=True).start()
         buffer.text = ""
 
@@ -851,7 +900,7 @@ class SelfResearchOS:
                 
                 # QOL: Welcome Message
                 welcome_text = (
-                    "# Welcome to SelfResearch OS v3.2.2\n"
+                    "# Welcome to SelfResearch OS v3.2.4\n"
                     "Your neural kernel is calibrated and ready for discovery.\n\n"
                     "**Quick Start:**\n"
                     "- Type a topic to start manual research.\n"
@@ -875,11 +924,29 @@ class SelfResearchOS:
                 self.run_research_pipeline(user_input)
             else:
                 self.run_general_agent_loop(user_input)
+
         except Exception as e:
             self.append_output(f"[os.status.error]Logic Error: {e}[/os.status.error]")
         finally:
             self.is_agent_running = False
             self.current_status = "Idle"
+
+    def _extract_hypothesis_title(self, structured_text: str, fallback_title: str) -> str:
+        for line in structured_text.splitlines():
+            cleaned = line.strip()
+            if not cleaned:
+                continue
+            lower = cleaned.lower()
+            if "hypothesis title" in lower:
+                parts = cleaned.split(":", 1)
+                if len(parts) == 2:
+                    return parts[1].strip()
+        first_lines = [l.strip() for l in structured_text.splitlines() if l.strip()]
+        if first_lines:
+            candidate = first_lines[0]
+            if len(candidate) > 5:
+                return candidate
+        return fallback_title
 
     def _init_agent(self):
         self.agent = LanguageModelWrapper(
@@ -945,11 +1012,28 @@ class SelfResearchOS:
         self.current_status = "Alien Hypothesis Generation"
         alien_prompt = (
             f"Base Topic: {base_topic}\nLive Signal: {live_signal}\n\n"
-            "Task: Intentionally 'misunderstand' a core assumption in the signal above. "
-            "Hallucinate a 'missing dimension' or 'alien variable' that shouldn't exist but explains the data better. "
-            "Output ONLY the radical hypothesis title."
+            "Task: Think like an eccentric visionary scientist. Intentionally 'misunderstand' or challenge a core assumption "
+            "from the signal, then hallucinate a missing dimension or alien leverage point that explains the anomaly with unexpected depth. "
+            "Use the scaffold below to build the response and lean into the template so the hypothesis is incredible, deeply technical, and ready for peer critique.\n\n"
+            "Format the response EXACTLY as Markdown bullets; do not add extra commentary beyond the scaffold.\n"
+            "- Hypothesis Title: A single vivid title summarizing the radical leap.\n"
+            "- Observation / Signal Summary: What anomaly or data wrinkle motivated this leap?\n"
+            "- Assumption Being Challenged: Which hidden belief is being flipped?\n"
+            "- Novel Mechanism or Leverage Point: The unexpected causal twist that makes the hypothesis work.\n"
+            "- Prediction (Quantitative/Binary): A crisp testable statement with dataset or simulation grounding.\n"
+            "- Evaluation Plan: Where to look, metric to check, or simulation to run to falsify/refine the claim.\n"
         )
-        refined_topic = self.agent.generate(alien_prompt, max_new_tokens=150, temperature=0.98).strip()
+        structured_hypothesis = self.agent.generate(
+            alien_prompt,
+            max_new_tokens=220,
+            temperature=0.95,
+            top_p=0.95
+        ).strip()
+        self.latest_hypothesis_template = structured_hypothesis
+        refined_topic = self._extract_hypothesis_title(structured_hypothesis, base_topic).strip()
+        if not refined_topic:
+            refined_topic = base_topic
+        self.append_output(Panel(Text(structured_hypothesis, style="os.workspace.text"), title="[bold cyan]HYPOTHESIS SCAFFOLD[/bold cyan]", border_style=ThemeEngine.SECONDARY))
         self.append_output(f"[os.branding]Alien Hypothesis:[/os.branding] {refined_topic}")
         
         self.current_status = "Retrieving Knowledge Graph"
@@ -982,6 +1066,13 @@ class SelfResearchOS:
         if "ABANDON" in strategy:
             self.append_output("[bold red]Research vector abandoned.[/bold red]")
             return
+
+        # --- NEW PHASE: Epistemological Deconstruction ---
+        self.current_status = "Epistemological Synthesis"
+        if "epistemological_synthesizer" in self.tool_manager.all_tools:
+            epistemic_insight = self.tool_manager.all_tools["epistemological_synthesizer"].execute(topic=refined_topic)
+            self.append_output(f"[os.status.info]Cross-Domain Paradigm Applied.[/os.status.info]")
+            past_context += f"\n\nEPISTEMOLOGICAL SHIFT:\n{epistemic_insight}"
                 
         # --- FEATURE 1: External Reality Check (Testable Prediction) ---
         self.current_status = "Predictive Modeling"
@@ -998,6 +1089,11 @@ class SelfResearchOS:
         system_prompt = None
         if axioms:
             system_prompt = "BEHAVIORAL AXIOMS LEARNED FROM PAST BREAKTHROUGHS:\n" + "\n".join(f"- {a}" for a in axioms[-5:])
+            
+        # Inject User Scaffolding
+        if self.user_scaffold_queue:
+            past_context += "\n\nUSER DIRECTIVES & SCAFFOLDING:\n" + "\n".join(f"- {u}" for u in self.user_scaffold_queue)
+            self.user_scaffold_queue.clear()
             
         full_prompt = f"Investigate: {refined_topic}{past_context}\n\nVerification Task: Verify if '{prediction}' holds true using available data or tools."
         
@@ -1063,6 +1159,13 @@ class SelfResearchOS:
         agent_response += f"\n\n### Causal Inference Pass:\n{causal_analysis}"
         self.ping_heartbeat()
         
+        # --- NEW PHASE: Metric Abstraction ---
+        self.current_status = "Metric Abstraction"
+        metric_prompt = f"Abstract the findings into a quantifiable mathematical metric or heuristic equation. Synthesis: {agent_response[-800:]}\nReturn ONLY the formula and a 1-sentence explanation."
+        metric_abstraction = self.agent.generate(metric_prompt, max_new_tokens=200)
+        agent_response += f"\n\n### Metric Abstraction:\n{metric_abstraction}"
+        self.ping_heartbeat()
+
         # --- FEATURE 5 (upgraded): Theory of Other Minds (Alien Peer Review) ---
         self.current_status = "Dialectical Dissent (Alien Mind)"
         dissent_sys_prompt = "You are an ALIEN INTELLIGENCE with a fundamentally different causal model of the universe. Your purpose is to find the one hidden human assumption that, if wrong, collapses this hypothesis. Deconstruct it from an outside-context perspective."
@@ -1257,8 +1360,10 @@ class SelfResearchOS:
 
     def shutdown(self, args=None):
         """Gracefully shutdown the OS and its background threads."""
+        self.daemon_running = False
         if hasattr(self, 'genetic_optimizer') and self.genetic_optimizer:
             self.genetic_optimizer.stop()
+        
         if hasattr(self, 'app') and self.app.is_running:
             self.app.exit()
         else:
