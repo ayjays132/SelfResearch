@@ -75,11 +75,20 @@ class GeneticTestTimeOptimizer:
         if os.path.exists(self.state_path):
             try:
                 with open(self.state_path, "r") as f:
-                    state = json.load(f)
-                    self.best_score = state.get("best_score", 0.0)
-                    self.generation = state.get("generation", 0)
-                    self.mutation_scale = state.get("mutation_scale", 1e-4)
-                    log.info(f"Loaded genetic state: Gen {self.generation}, Score {self.best_score:.2f}")
+                    raw = f.read().strip()
+                    if not raw:
+                        raise ValueError("genetic_state.json is empty")
+                    state = json.loads(raw)
+                self.best_score = state.get("best_score", 0.0)
+                self.generation = state.get("generation", 0)
+                self.mutation_scale = state.get("mutation_scale", 1e-4)
+                log.info(f"Loaded genetic state: Gen {self.generation}, Score {self.best_score:.2f}")
+            except (json.JSONDecodeError, ValueError) as e:
+                log.warning(f"Resetting genetic state because it could not be parsed: {e}")
+                try:
+                    os.remove(self.state_path)
+                except OSError:
+                    pass
             except Exception as e:
                 log.error(f"Failed to load genetic state: {e}")
 
