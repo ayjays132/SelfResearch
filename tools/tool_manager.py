@@ -199,10 +199,24 @@ class ToolManager:
             
             tool_instance = self.all_tools[tool_name]
             result = tool_instance.execute(**kwargs)
-            
+
             # Ping heartbeat after tool execution
             if self.os: self.os.ping_heartbeat()
             
+            formatted_kwargs = []
+            for k, v in (kwargs or {}).items():
+                val = str(v).replace("\\n", " ").strip()
+                if len(val) > 30:
+                    val = val[:27] + "..."
+                formatted_kwargs.append(f"{k}={val}")
+            args_summary = ", ".join(formatted_kwargs)
+            descriptor = f"{tool_name} ({args_summary})" if args_summary else tool_name
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            if self.os:
+                self.os.last_tool_activity = descriptor
+                self.os.guidance_indicator = f"{tool_name.replace('_', ' ').title()} @ {timestamp}"
+                self.os.append_output(f"[os.status.info]Tool Call: {descriptor}[/os.status.info]")
+             
             res_panel = Panel(
                 f"[os.workspace.text]{str(result)[:1500]}[/os.workspace.text]" + ("..." if len(str(result)) > 1500 else ""), 
                 title=f"[bold {aesthetic['color']}]✅ Result[/]", 
@@ -212,19 +226,6 @@ class ToolManager:
                 self.os.append_output(res_panel)
             else:
                 theme_console.print(res_panel)
-
-            if self.os:
-                formatted_kwargs = []
-                for k, v in (kwargs or {}).items():
-                    val = str(v).replace("\\n", " ").strip()
-                    if len(val) > 30:
-                        val = val[:27] + "..."
-                    formatted_kwargs.append(f"{k}={val}")
-                args_summary = ", ".join(formatted_kwargs)
-                descriptor = f"{tool_name} ({args_summary})" if args_summary else tool_name
-                timestamp = datetime.now().strftime("%H:%M:%S")
-                self.os.last_tool_activity = descriptor
-                self.os.guidance_indicator = f"{tool_name.replace('_', ' ').title()} @ {timestamp}"
             
             return True, f"<tool_result>\n{result}\n</tool_result>"
             

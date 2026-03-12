@@ -5,6 +5,7 @@ import threading
 import logging
 import copy
 import random
+import json
 from typing import List, Dict, Any, Optional
 from rich.console import Console
 from models.model_wrapper import LanguageModelWrapper
